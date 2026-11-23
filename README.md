@@ -70,11 +70,28 @@ safe-anything . --include-tests    # also report findings in tests and fixtures
 safe-anything --list-rules
 ```
 
-- `.gitignore` is respected, and `node_modules`, `vendor`, `target`, `dist`, `build`, virtualenvs
-  and `.claude/worktrees` are skipped. List more paths in `.safe-anything-ignore`.
+- `.gitignore` is respected. List more paths in `.safe-anything-ignore`; the built-in skips below
+  cannot be undone.
 - `safe-anything:ignore` in a comment silences that line (or the next one).
 - In tests, specs and fixtures only real provider keys and private keys count, unless you pass
   `--include-tests`.
+
+### What is not scanned
+
+In a folder scan (`safe-anything .`), these are never opened:
+
+- the folders `.git`, `node_modules`, `target`, `vendor`, `dist`, `build`, `.next`, `.venv`, `venv`,
+  `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees`;
+- files over 2 MB, lockfiles included — a lockfile that big gets no dependency check either;
+- `*.min.js`, `*.map`, `*.jsonl` and `*.log` files;
+- files with a zero byte in the first 8 KB, treated as binary.
+
+`*.lock` files are read for dependencies only; code rules do not run on them. Only known lockfile
+formats are parsed, so an unknown `*.lock` file gets no dependency check either.
+
+None of these files appear in the report: the file count is how many files were scanned. Passing a
+file directly (`safe-anything build/index.js`) does check it, even when its folder would be skipped
+in a folder scan.
 
 ## What it finds
 
@@ -88,7 +105,7 @@ The full list is in [docs/rules.md](docs/rules.md).
 | **Agent setups** | `bypassPermissions` and `--dangerously-skip-permissions`, pre-approved `Bash`, MCP servers run with unpinned `npx`/`uvx`/`docker`, MCP tokens in plain text, remote MCP over `http://`, `curl \| sh` in hooks and skills, prompt-injection text, skills that read `~/.ssh` or cloud credentials, invisible Unicode in instructions. [More](docs/agent-setups.md) |
 | **Mobile** | Android `debuggable`, cleartext traffic, exported content providers, WebView file access and JS bridges, world-readable files; iOS ATS turned off; tokens in UserDefaults, SharedPreferences, AsyncStorage or localStorage |
 | **Config** | Docker (unpinned base, root, secrets in `ENV`, `ADD <url>`), GitHub Actions (`pull_request_target`, `write-all`, actions on `@main`, script injection from PR titles), privileged containers, `hostNetwork`, open Terraform ingress, public buckets, nginx autoindex, TLS 1.0/1.1 |
-| **Dependencies** | every locked version in `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
+| **Dependencies** | every locked version in `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version. Lockfiles over 2 MB are skipped |
 
 <p align="center">
   <img src="docs/assets/nextjs-public-env.gif" alt="safe-anything on the with-mqtt-js example from the Next.js repository: 2 high findings, an MQTT password read from a NEXT_PUBLIC_ variable in app/page.tsx and environment.d.ts, which Next.js ships in the client bundle." width="820">
