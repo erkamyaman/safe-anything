@@ -48,6 +48,7 @@ pub fn parse_lockfile(file: &FileInfo, text: &str) -> Vec<Package> {
         "go.mod" => go_mod(file, text),
         "gemfile.lock" => gemfile_lock(file, text),
         "composer.lock" => composer_lock(file, text),
+        "pubspec.lock" => pubspec_lock(file, text),
         n if n.starts_with("requirements") && n.ends_with(".txt") => requirements(file, text),
         _ => Vec::new(),
     }
@@ -269,6 +270,35 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
             }
         }
     }
+    out
+}
+
+fn pubspec_lock(file: &FileInfo, text: &str) -> Vec<Package> {
+    let mut out = Vec::new();
+    let mut sdk = HashSet::new();
+    let mut in_packages = false;
+    let mut name = "";
+    for (i, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            in_packages = line.trim_end() == "packages:";
+            continue;
+        }
+        if !in_packages || line.starts_with("     ") {
+            continue;
+        }
+        let l = line.trim();
+        if !line.starts_with("    ") {
+            name = l.trim_end_matches(':').trim_matches('"');
+        } else if let Some(v) = l.strip_prefix("version: ") {
+            out.push(pkg("Pub", name, v.trim_matches('"'), file, i + 1));
+        } else if l == "source: sdk" {
+            sdk.insert(name);
+        }
+    }
+    out.retain(|p| !sdk.contains(p.name.as_str()));
     out
 }
 

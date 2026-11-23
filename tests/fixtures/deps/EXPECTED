@@ -6,3 +6,4 @@ rs/Cargo.lock:5 dependency.known-vulnerability
 php/composer.lock:5 dependency.known-vulnerability
 pnpm/pnpm-lock.yaml:29 dependency.known-vulnerability
 uv/uv.lock:6 dependency.known-vulnerability
+dart/pubspec.lock:24 dependency.known-vulnerability
