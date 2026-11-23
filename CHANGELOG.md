@@ -4,6 +4,7 @@
 
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
   (`Pub` ecosystem). Packages from the `sdk` source, like `flutter`, are skipped.
+- Secrets: new rule `secret.gitlab-token` (critical) for GitLab personal access tokens (`glpat-` followed by 20 characters).
 - Secrets: new rule `secret.npm-token` (critical) for npm access tokens (`npm_` followed by 36 letters or digits).
 - Dependencies: `uv.lock` entries whose `source` is `editable`, `virtual` or `path` (the project itself or a
   local package) are no longer counted or looked up on PyPI.

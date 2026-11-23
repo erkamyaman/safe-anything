@@ -12,6 +12,7 @@ pub fn fake(name: &str) -> String {
     match name {
         "aws" => ["AK", "IA", &body(16, UPPER)].concat(),
         "github" => ["gh", "p_", &body(36, MIXED)].concat(),
+        "gitlab" => ["gl", "pat-", &body(20, MIXED)].concat(),
         "github-pat" => ["github", "_pat_", &body(82, MIXED)].concat(),
         "slack" => [
             "xo",
