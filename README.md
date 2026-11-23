@@ -78,20 +78,23 @@ safe-anything --list-rules
 
 ### What is not scanned
 
-In a folder scan (`safe-anything .`), these are never opened:
+In a folder scan (`safe-anything .`), these are excluded from analysis:
 
 - the folders `.git`, `node_modules`, `target`, `vendor`, `dist`, `build`, `.next`, `.venv`, `venv`,
-  `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees`;
+  `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees` — the walker does not enter them;
 - files over 2 MB, lockfiles included — a lockfile that big gets no dependency check either;
 - `*.min.js`, `*.map`, `*.jsonl` and `*.log` files;
-- files with a zero byte in the first 8 KB, treated as binary.
+- files with a zero byte in the first 8 KB, treated as binary;
+- files that cannot be read, for example because of file permissions.
+
+The size check happens before a file is read; the other file checks happen after it is read. None of
+these files are counted or reported, so a clean report does not prove every file was analysed.
 
 `*.lock` files are read for dependencies only; code rules do not run on them. Only known lockfile
 formats are parsed, so an unknown `*.lock` file gets no dependency check either.
 
-None of these files appear in the report: the file count is how many files were scanned. Passing a
-file directly (`safe-anything build/index.js`) does check it, even when its folder would be skipped
-in a folder scan.
+Passing a file directly (`safe-anything build/index.js`) bypasses only the folder skips; the size,
+binary and extension checks still apply to that file.
 
 ## What it finds
 
