@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Dependencies: `pnpm-lock.yaml` is read again. A blank line ended the `packages:` section, and
+  pnpm writes one right after it, so every pnpm project reported 0 packages checked.
+
 ## 1.0.2 (2026-11-23)
 
 - README: GIFs of a real Next.js finding (a password behind `NEXT_PUBLIC_`) and of a clean scan of express.

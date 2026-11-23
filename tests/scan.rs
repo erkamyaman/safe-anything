@@ -98,5 +98,5 @@ fn deps() {
         advisories: Some(Box::new(known)),
         include_tests: false,
     };
-    check_with("deps", options, Some(13));
+    check_with("deps", options, Some(16));
 }

@@ -116,6 +116,10 @@ fn pnpm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let mut out = Vec::new();
     let mut in_packages = false;
     for (i, line) in text.lines().enumerate() {
+        // pnpm puts a blank line after `packages:` and between entries; it does not end the section.
+        if line.trim().is_empty() {
+            continue;
+        }
         if !line.starts_with(' ') {
             in_packages = line.starts_with("packages:");
             continue;

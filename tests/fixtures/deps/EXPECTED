@@ -4,3 +4,4 @@ svc/go.mod:6 dependency.known-vulnerability
 rb/Gemfile.lock:4 dependency.known-vulnerability
 rs/Cargo.lock:5 dependency.known-vulnerability
 php/composer.lock:5 dependency.known-vulnerability
+pnpm/pnpm-lock.yaml:29 dependency.known-vulnerability
