@@ -98,5 +98,7 @@ fn deps() {
         advisories: Some(Box::new(known)),
         include_tests: false,
     };
+    // The web/yarn.lock fixture contains a `my-app@workspace:.` entry that must be
+    // skipped (not counted as a dependency). The expected package count stays 18.
     check_with("deps", options, Some(18));
 }
