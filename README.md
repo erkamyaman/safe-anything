@@ -70,8 +70,16 @@ safe-anything . --include-tests    # also report findings in tests and fixtures
 safe-anything --list-rules
 ```
 
-- `.gitignore` is respected, and `node_modules`, `vendor`, `target`, `dist`, `build`, virtualenvs
-  and `.claude/worktrees` are skipped. List more paths in `.safe-anything-ignore`.
+- `.gitignore` is respected. List more paths in `.safe-anything-ignore`; it only adds to what is
+  skipped, it cannot bring back what is listed below.
+- These are never scanned, and the report only counts the files it did scan:
+  - folders `.git`, `node_modules`, `target`, `vendor`, `dist`, `build`, `.next`, `.venv`, `venv`,
+    `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees`, so generated code in `build/` is
+    not checked
+  - any file over 2 MB, lockfiles included, so a lockfile that large gets no dependency check
+  - `*.min.js`, `*.map`, `*.jsonl` and `*.log`
+  - binary files (a zero byte in the first 8 KB)
+  - `*.lock` files get the dependency check but no code rules
 - `safe-anything:ignore` in a comment silences that line (or the next one).
 - In tests, specs and fixtures only real provider keys and private keys count, unless you pass
   `--include-tests`.
