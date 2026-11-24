@@ -422,7 +422,7 @@ pub static RULES: &[Rule] = &[
         "code.unsafe-deserialization",
         High,
         py,
-        r"\bpickle\.loads?\s*\(|\byaml\.load\s*\(|\bmarshal\.loads?\s*\(",
+        r"\bpickle\.loads?\s*\(|\byaml\.load\s*\(|\byaml\.unsafe_load\s*\(|\byaml\.load_all\s*\(|\bmarshal\.loads?\s*\(",
         Some(r"Loader\s*=\s*(?:yaml\.)?C?SafeLoader"),
         DESER_MSG,
         DESER_FIX
@@ -449,8 +449,8 @@ pub static RULES: &[Rule] = &[
         "code.unsafe-deserialization",
         High,
         rb,
-        r"\bMarshal\.load\s*\(|\bYAML\.load\s*\(",
-        Some(r"permitted_classes|safe_load"),
+        r"\bMarshal\.load\s*\(|\bMarshal\.restore\s*\(|\bYAML\.load\s*\(|\bYAML\.unsafe_load\s*\(",
+        Some(r"permitted_classes|\bsafe_load"),
         DESER_MSG,
         DESER_FIX
     ),

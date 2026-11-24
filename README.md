@@ -16,12 +16,12 @@ Every finding comes with the line, the reason and the fix.</p>
   <a href="https://crates.io/crates/safe-anything"><img src="https://img.shields.io/crates/v/safe-anything?color=2FD48F&label=crates.io" alt="crates.io version"></a>
   <a href="https://www.npmjs.com/package/safe-anything"><img src="https://img.shields.io/npm/v/safe-anything?color=2FD48F&label=npm" alt="npm version"></a>
   <br>
-  <a href="https://coderabbit.link/erkamyaman"><img src="https://img.shields.io/coderabbit/prs/github/erkamyaman/safe-anything?labelColor=171717&color=FF570A&label=Reviewed+by+CodeRabbit" alt="Pull requests reviewed by CodeRabbit"></a>
+  <a href="https://coderabbit.link/er-kam"><img src="https://img.shields.io/coderabbit/prs/github/erkamyaman/safe-anything?labelColor=171717&color=FF570A&label=Reviewed+by+CodeRabbit" alt="Pull requests reviewed by CodeRabbit"></a>
   <a href="https://github.com/erkamyaman/safe-anything"><img src="https://img.shields.io/github/stars/erkamyaman/safe-anything?style=social" alt="GitHub stars"></a>
 </p>
 
 <p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 74 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
-Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/erkamyaman">CodeRabbit</a></p>
+Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/er-kam">CodeRabbit</a></p>
 
 <p align="center">
   <img src="docs/assets/terminal.gif" alt="safe-anything scans OWASP Juice Shop: 1,195 files in 0.03 s, 67 findings including the SQL injection in routes/login.ts, eval in routes/userProfile.ts, seeded passwords and a token in localStorage. Then it scans an AI agent setup: a GitHub token in .mcp.json, bypassPermissions, pre-approved Bash, curl piped to sh in a hook, a skill that reads ~/.ssh, invisible Unicode, unpinned MCP servers." width="820">
@@ -192,7 +192,7 @@ these 74 problems were found, not that the code is safe. [Design notes](docs/adr
 <p align="center"><sub>Your safety comes first: sponsors get a logo and a link here, nothing more. No paid recommendations and no setup guides for third-party AI API resellers, so nothing here steers your code, keys or data somewhere you didn't choose.</sub></p>
 
 <p align="center">
-  <a href="https://coderabbit.link/erkamyaman">
+  <a href="https://coderabbit.link/er-kam">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/sponsors/company-dark.svg">
       <img src="docs/assets/sponsors/company-light.svg" width="800" alt="Company sponsor: CodeRabbit">
