@@ -16,24 +16,32 @@ pub fn is_env(name: &str) -> bool {
 }
 
 pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
-    if env_files.is_empty() {
-        return None;
-    }
-    let src = std::fs::read_to_string(root.join(".gitignore")).ok()?;
-    let covered = src.lines().map(str::trim).any(|l| {
-        let l = l.trim_start_matches("**/").trim_start_matches('/');
-        l.starts_with(".env") || l.starts_with("*.env")
+    let first_env = env_files.first()?;
+    // With no .gitignore nothing is ignored, so report at the env file itself.
+    let gitignore = std::fs::read_to_string(root.join(".gitignore")).ok();
+    let covered = gitignore.as_deref().is_some_and(|src| {
+        src.lines().map(str::trim).any(|l| {
+            let l = l.trim_start_matches("**/").trim_start_matches('/');
+            l.starts_with(".env") || l.starts_with("*.env")
+        })
     });
     if covered {
         return None;
     }
+    let (file, src) = match gitignore {
+        Some(src) => (".gitignore".to_string(), src),
+        None => (
+            first_env.clone(),
+            std::fs::read_to_string(root.join(first_env)).unwrap_or_default(),
+        ),
+    };
     let text = Text::new(&src);
     if text.suppressed(1) {
         return None;
     }
     let (id, severity, message) = ENV_NOT_IGNORED;
     Some(finding(
-        &FileInfo::new(".gitignore"),
+        &FileInfo::new(&file),
         &text,
         1,
         Meta {

@@ -37,6 +37,28 @@ fn secrets() {
 }
 
 #[test]
+fn secrets_without_gitignore() {
+    // Self-contained: the project is built in a temp dir so the test does not
+    // depend on a fixture folder that must exist alongside it.
+    let root =
+        std::env::temp_dir().join(format!("safe-anything-no-gitignore-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join(".env"), "PORT=3000\n").unwrap();
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let found: Vec<String> = report
+        .findings
+        .iter()
+        .map(|f| format!("{}:{} {}", f.path, f.line, f.rule))
+        .collect();
+    let _ = std::fs::remove_dir_all(&root);
+    assert!(
+        found.iter().any(|f| f == ".env:1 secret.env-not-ignored"),
+        "expected .env:1 secret.env-not-ignored, found {found:?}"
+    );
+}
+
+#[test]
 fn code() {
     check("code");
 }
