@@ -67,7 +67,7 @@ fn env_example(f: &FileInfo) -> bool {
 
 const ENV_SECRET_LINE: &str = r#"(?m)^\s*(?:export\s+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*\s*=\s*["']?([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})["']?\s*$"#;
 
-const ENV_PLACEHOLDER: &str = r"^\s*(?:export\s+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=\s*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))";
+const ENV_PLACEHOLDER: &str = r"^\s*(?:export\s+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=\s*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))|=\s*[\x22']?\*+[\x22']?\s*$";
 
 const ROTATE: &str = "Revoke this credential at the provider, then load it from the environment or a secrets manager and keep it out of the repository.";
 
