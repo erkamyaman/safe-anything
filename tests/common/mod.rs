@@ -30,6 +30,8 @@ pub fn fake(name: &str) -> String {
         "google" => ["AI", "za", &body(35, MIXED)].concat(),
         "password" => ["hunter2", "hunter2"].concat(),
         "db-password" => ["S3cret", "Passw0rd"].concat(),
+        "base64-padded" => [&body(30, MIXED), "=="].concat(),
+        "symbol-password" => ["S3cret!", "Pass#2024$"].concat(),
         "random" => body(40, MIXED),
         "private-key" => [
             "-----BEGIN RSA ",
