@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Agent: an MCP config whose `npx` (or `pnpm dlx`) argument is empty or starts with a non-ASCII
+  character no longer crashes the scan.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
   (`Pub` ecosystem). Packages from the `sdk` source, like `flutter`, are skipped.
 - Secrets: new rule `secret.gitlab-token` (critical) for GitLab personal access tokens (`glpat-` followed by 20 characters).
