@@ -78,9 +78,9 @@ fn env_example(f: &FileInfo) -> bool {
     is_env(&f.name) && is_env_template(&f.name)
 }
 
-const ENV_SECRET_LINE: &str = r#"(?m)^\s*(?:export\s+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*\s*=\s*["']?([A-Za-z0-9+/_.\-]{16,})["']?\s*$"#;
+const ENV_SECRET_LINE: &str = r#"(?m)^\s*(?:export\s+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*\s*=\s*["']?([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})["']?\s*$"#;
 
-const ENV_PLACEHOLDER: &str = r"^\s*(?:export\s+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=\s*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))";
+const ENV_PLACEHOLDER: &str = r"^\s*(?:export\s+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=\s*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))|=\s*[\x22']?\*+[\x22']?\s*$|=\s*[\x22']?\$";
 
 const ROTATE: &str = "Revoke this credential at the provider, then load it from the environment or a secrets manager and keep it out of the repository.";
 
@@ -165,6 +165,12 @@ pub static RULES: &[Rule] = &[
         Critical,
         r"\bkey-[0-9a-f]{32}\b",
         "A Mailgun API key is written in the file."
+    ),
+    secret!(
+        "secret.telegram-bot-token",
+        High,
+        r"\b([0-9]{8,10}:[A-Za-z0-9_\-]{35})(?:[^A-Za-z0-9_\-]|\z)",
+        "A Telegram bot token is written in the file."
     ),
     secret!(
         "secret.private-key",

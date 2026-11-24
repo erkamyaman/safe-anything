@@ -31,7 +31,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`code.sql-grant-all`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-250](https://cwe.mitre.org/data/definitions/250.html) | A01:2021 Broken Access Control | A database user gets every privilege on every database. |
 | [`code.sql-plaintext-password`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A database password is written in a SQL file. |
 
-## Secrets (18)
+## Secrets (19)
 
 | Rule | Severity | CWE | OWASP | What it means |
 | --- | --- | --- | --- | --- |
@@ -46,6 +46,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`secret.openai-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | An OpenAI API key is written in the file. |
 | [`secret.google-api-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Google API key is written in the file. |
 | [`secret.mailgun-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Mailgun API key is written in the file. |
+| [`secret.telegram-bot-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Telegram bot token is written in the file. |
 | [`secret.private-key`](https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html) | critical | [CWE-321](https://cwe.mitre.org/data/definitions/321.html) | A02:2021 Cryptographic Failures | A private key is stored in the repository. |
 | [`secret.hardcoded-password`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A password or secret is written in the code. |
 | [`secret.url-credentials`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A connection string carries a username and password. |

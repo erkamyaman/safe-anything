@@ -20,7 +20,7 @@ Every finding comes with the line, the reason and the fix.</p>
   <a href="https://github.com/erkamyaman/safe-anything"><img src="https://img.shields.io/github/stars/erkamyaman/safe-anything?style=social" alt="GitHub stars"></a>
 </p>
 
-<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 76 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
+<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 77 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
 Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/er-kam">CodeRabbit</a></p>
 
 <p align="center">
@@ -86,7 +86,7 @@ safe-anything --list-rules
 
 ## What it finds
 
-76 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
+77 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
 The full list is in [docs/rules.md](docs/rules.md).
 
 | | |
@@ -175,7 +175,7 @@ lockfile listed under Dependencies. Nothing is executed. The only network call i
 names and versions to OSV.dev ([privacy](docs/privacy.md)).
 
 It finds known patterns; it does not trace data through your program. A clean scan means none of
-these 76 problems were found, not that the code is safe. [Design notes](docs/adr).
+these 77 problems were found, not that the code is safe. [Design notes](docs/adr).
 
 ## Credits
 
