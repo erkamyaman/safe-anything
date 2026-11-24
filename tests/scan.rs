@@ -63,6 +63,26 @@ fn secrets_without_gitignore() {
 }
 
 #[test]
+fn env_example_without_gitignore() {
+    let root = std::env::temp_dir().join(format!(
+        "safe-anything-example-no-gitignore-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join(".env.example"), "SETTING=\n").unwrap();
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert!(
+        !report
+            .findings
+            .iter()
+            .any(|f| f.rule == "secret.env-not-ignored"),
+        "a lone .env.example should not be reported"
+    );
+}
+
+#[test]
 fn code() {
     check("code");
 }

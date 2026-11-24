@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.env-not-ignored` is reported at the `.env` file when the project has no `.gitignore`
+  at all. Example files like `.env.example` alone no longer trigger it.
 - Agent: an MCP config whose `npx` (or `pnpm dlx`) argument is empty or starts with a non-ASCII
   character no longer crashes the scan.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev

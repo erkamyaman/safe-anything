@@ -16,7 +16,7 @@ pub fn is_env(name: &str) -> bool {
 }
 
 pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
-    let first_env = env_files.first()?;
+    let first_env = env_files.iter().filter(|p| !is_env_template(p)).min()?;
     // With no .gitignore nothing is ignored, so report at the env file itself.
     let gitignore = std::fs::read_to_string(root.join(".gitignore")).ok();
     let covered = gitignore.as_deref().is_some_and(|src| {
@@ -64,18 +64,18 @@ fn any_text(_: &FileInfo) -> bool {
     true
 }
 
+fn is_env_template(name: &str) -> bool {
+    ["example", "sample", "template", "dist", "defaults"]
+        .iter()
+        .any(|s| name.ends_with(s))
+}
+
 fn env_file(f: &FileInfo) -> bool {
-    is_env(&f.name)
-        && !["example", "sample", "template", "dist", "defaults"]
-            .iter()
-            .any(|s| f.name.ends_with(s))
+    is_env(&f.name) && !is_env_template(&f.name)
 }
 
 fn env_example(f: &FileInfo) -> bool {
-    is_env(&f.name)
-        && ["example", "sample", "template", "dist", "defaults"]
-            .iter()
-            .any(|s| f.name.ends_with(s))
+    is_env(&f.name) && is_env_template(&f.name)
 }
 
 const ENV_SECRET_LINE: &str = r#"(?m)^\s*(?:export\s+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*\s*=\s*["']?([A-Za-z0-9+/_.\-]{16,})["']?\s*$"#;
