@@ -96,7 +96,7 @@ The full list is in [docs/rules.md](docs/rules.md).
 | **Agent setups** | `bypassPermissions` and `--dangerously-skip-permissions`, pre-approved `Bash`, MCP servers run with unpinned `npx`/`uvx`/`docker`, MCP tokens in plain text, remote MCP over `http://`, `curl \| sh` in hooks and skills, prompt-injection text, skills that read `~/.ssh` or cloud credentials, invisible Unicode in instructions. [More](docs/agent-setups.md) |
 | **Mobile** | Android `debuggable`, cleartext traffic, exported content providers, WebView file access and JS bridges, world-readable files; iOS ATS turned off; tokens in UserDefaults, SharedPreferences, AsyncStorage or localStorage |
 | **Config** | Docker (unpinned base, root, secrets in `ENV`, `ADD <url>`), GitHub Actions (`pull_request_target`, `write-all`, actions on `@main`, script injection from PR titles), privileged containers, `hostNetwork`, open Terraform ingress, public buckets, nginx autoindex, TLS 1.0/1.1 |
-| **Dependencies** | every locked version in `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
+| **Dependencies** | every locked version in `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
 
 <p align="center">
   <img src="docs/assets/nextjs-public-env.gif" alt="safe-anything on the with-mqtt-js example from the Next.js repository: 2 high findings, an MQTT password read from a NEXT_PUBLIC_ variable in app/page.tsx and environment.d.ts, which Next.js ships in the client bundle." width="820">
@@ -170,8 +170,8 @@ same. Status per family: [docs/STATUS.md](docs/STATUS.md).
 
 One parallel walk over the repository (the `ignore` crate, the walker behind ripgrep), one read per
 file, and every rule that applies run as a compiled regex. Where a pattern can't tell right from
-wrong, the file is parsed: MCP configs as JSON with comments, Dockerfile stages, ten lockfile
-formats. Nothing is executed. The only network call is the dependency check, which sends package
+wrong, the file is parsed: MCP configs as JSON with comments, Dockerfile stages, and every
+lockfile listed under Dependencies. Nothing is executed. The only network call is the dependency check, which sends package
 names and versions to OSV.dev ([privacy](docs/privacy.md)).
 
 It finds known patterns; it does not trace data through your program. A clean scan means none of
