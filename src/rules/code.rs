@@ -418,11 +418,25 @@ pub static RULES: &[Rule] = &[
         "A template is built from request input, so users can run code in the template engine (SSTI).",
         "Render fixed template files and pass user input only as variables."
     ),
+    // Split from yaml.load/load_all below: `unless` is matched against the
+    // whole line, so a SafeLoader call on the same line would otherwise hide
+    // an unsafe call (e.g. `yaml.unsafe_load(x); yaml.load(y,
+    // Loader=yaml.SafeLoader)`). These calls have no safe-loader form, so
+    // they need no exception.
     rule!(
         "code.unsafe-deserialization",
         High,
         py,
-        r"\bpickle\.loads?\s*\(|\byaml\.load\s*\(|\bmarshal\.loads?\s*\(",
+        r"\bpickle\.loads?\s*\(|\byaml\.unsafe_load\s*\(|\bmarshal\.loads?\s*\(",
+        None,
+        DESER_MSG,
+        DESER_FIX
+    ),
+    rule!(
+        "code.unsafe-deserialization",
+        High,
+        py,
+        r"\byaml\.load\s*\(|\byaml\.load_all\s*\(",
         Some(r"Loader\s*=\s*(?:yaml\.)?C?SafeLoader"),
         DESER_MSG,
         DESER_FIX
@@ -449,8 +463,12 @@ pub static RULES: &[Rule] = &[
         "code.unsafe-deserialization",
         High,
         rb,
-        r"\bMarshal\.load\s*\(|\bYAML\.load\s*\(",
-        Some(r"permitted_classes|safe_load"),
+        r"\bMarshal\.load\s*\(|\bMarshal\.restore\s*\(|\bYAML\.load\s*\(|\bYAML\.unsafe_load\s*\(",
+        // No safe_load exception: the pattern never matches YAML.safe_load,
+        // so keeping it here only let a safe call on the same line hide an
+        // unsafe one. permitted_classes stays: YAML.load with an allow list
+        // is the safe form.
+        Some(r"permitted_classes"),
         DESER_MSG,
         DESER_FIX
     ),

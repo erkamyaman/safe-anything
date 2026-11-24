@@ -16,12 +16,12 @@ Every finding comes with the line, the reason and the fix.</p>
   <a href="https://crates.io/crates/safe-anything"><img src="https://img.shields.io/crates/v/safe-anything?color=2FD48F&label=crates.io" alt="crates.io version"></a>
   <a href="https://www.npmjs.com/package/safe-anything"><img src="https://img.shields.io/npm/v/safe-anything?color=2FD48F&label=npm" alt="npm version"></a>
   <br>
-  <a href="https://coderabbit.link/erkamyaman"><img src="https://img.shields.io/coderabbit/prs/github/erkamyaman/safe-anything?labelColor=171717&color=FF570A&label=Reviewed+by+CodeRabbit" alt="Pull requests reviewed by CodeRabbit"></a>
+  <a href="https://coderabbit.link/er-kam"><img src="https://img.shields.io/coderabbit/prs/github/erkamyaman/safe-anything?labelColor=171717&color=FF570A&label=Reviewed+by+CodeRabbit" alt="Pull requests reviewed by CodeRabbit"></a>
   <a href="https://github.com/erkamyaman/safe-anything"><img src="https://img.shields.io/github/stars/erkamyaman/safe-anything?style=social" alt="GitHub stars"></a>
 </p>
 
-<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 74 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
-Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/erkamyaman">CodeRabbit</a></p>
+<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 76 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
+Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/er-kam">CodeRabbit</a></p>
 
 <p align="center">
   <img src="docs/assets/terminal.gif" alt="safe-anything scans OWASP Juice Shop: 1,195 files in 0.03 s, 67 findings including the SQL injection in routes/login.ts, eval in routes/userProfile.ts, seeded passwords and a token in localStorage. Then it scans an AI agent setup: a GitHub token in .mcp.json, bypassPermissions, pre-approved Bash, curl piped to sh in a hook, a skill that reads ~/.ssh, invisible Unicode, unpinned MCP servers." width="820">
@@ -70,15 +70,23 @@ safe-anything . --include-tests    # also report findings in tests and fixtures
 safe-anything --list-rules
 ```
 
-- `.gitignore` is respected, and `node_modules`, `vendor`, `target`, `dist`, `build`, virtualenvs
-  and `.claude/worktrees` are skipped. List more paths in `.safe-anything-ignore`.
+- `.gitignore` is respected. List more paths in `.safe-anything-ignore`; it only adds to what is
+  skipped, it cannot bring back what is listed below.
+- These are never scanned, and the report only counts the files it did scan:
+  - folders `.git`, `node_modules`, `target`, `vendor`, `dist`, `build`, `.next`, `.venv`, `venv`,
+    `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees`, so generated code in `build/` is
+    not checked
+  - any file over 2 MB, lockfiles included, so a lockfile that large gets no dependency check
+  - `*.min.js`, `*.map`, `*.jsonl` and `*.log`
+  - binary files (a zero byte in the first 8 KB)
+  - `*.lock` files get the dependency check but no code rules
 - `safe-anything:ignore` in a comment silences that line (or the next one).
 - In tests, specs and fixtures only real provider keys and private keys count, unless you pass
   `--include-tests`.
 
 ## What it finds
 
-74 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
+76 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
 The full list is in [docs/rules.md](docs/rules.md).
 
 | | |
@@ -88,7 +96,7 @@ The full list is in [docs/rules.md](docs/rules.md).
 | **Agent setups** | `bypassPermissions` and `--dangerously-skip-permissions`, pre-approved `Bash`, MCP servers run with unpinned `npx`/`uvx`/`docker`, MCP tokens in plain text, remote MCP over `http://`, `curl \| sh` in hooks and skills, prompt-injection text, skills that read `~/.ssh` or cloud credentials, invisible Unicode in instructions. [More](docs/agent-setups.md) |
 | **Mobile** | Android `debuggable`, cleartext traffic, exported content providers, WebView file access and JS bridges, world-readable files; iOS ATS turned off; tokens in UserDefaults, SharedPreferences, AsyncStorage or localStorage |
 | **Config** | Docker (unpinned base, root, secrets in `ENV`, `ADD <url>`), GitHub Actions (`pull_request_target`, `write-all`, actions on `@main`, script injection from PR titles), privileged containers, `hostNetwork`, open Terraform ingress, public buckets, nginx autoindex, TLS 1.0/1.1 |
-| **Dependencies** | every locked version in `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
+| **Dependencies** | every locked version in `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
 
 <p align="center">
   <img src="docs/assets/nextjs-public-env.gif" alt="safe-anything on the with-mqtt-js example from the Next.js repository: 2 high findings, an MQTT password read from a NEXT_PUBLIC_ variable in app/page.tsx and environment.d.ts, which Next.js ships in the client bundle." width="820">
@@ -162,12 +170,12 @@ same. Status per family: [docs/STATUS.md](docs/STATUS.md).
 
 One parallel walk over the repository (the `ignore` crate, the walker behind ripgrep), one read per
 file, and every rule that applies run as a compiled regex. Where a pattern can't tell right from
-wrong, the file is parsed: MCP configs as JSON with comments, Dockerfile stages, ten lockfile
-formats. Nothing is executed. The only network call is the dependency check, which sends package
+wrong, the file is parsed: MCP configs as JSON with comments, Dockerfile stages, and every
+lockfile listed under Dependencies. Nothing is executed. The only network call is the dependency check, which sends package
 names and versions to OSV.dev ([privacy](docs/privacy.md)).
 
 It finds known patterns; it does not trace data through your program. A clean scan means none of
-these 74 problems were found, not that the code is safe. [Design notes](docs/adr).
+these 76 problems were found, not that the code is safe. [Design notes](docs/adr).
 
 ## Credits
 
@@ -192,7 +200,7 @@ these 74 problems were found, not that the code is safe. [Design notes](docs/adr
 <p align="center"><sub>Your safety comes first: sponsors get a logo and a link here, nothing more. No paid recommendations and no setup guides for third-party AI API resellers, so nothing here steers your code, keys or data somewhere you didn't choose.</sub></p>
 
 <p align="center">
-  <a href="https://coderabbit.link/erkamyaman">
+  <a href="https://coderabbit.link/er-kam">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/sponsors/company-dark.svg">
       <img src="docs/assets/sponsors/company-light.svg" width="800" alt="Company sponsor: CodeRabbit">

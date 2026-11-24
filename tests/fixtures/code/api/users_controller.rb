@@ -3,3 +3,8 @@ User.where(name: params[:name])
 system("convert #{params[:file]} out.png")
 obj = Marshal.load(data)
 <%= raw @comment.body %>
+obj = YAML.unsafe_load(data)
+obj = Marshal.restore(data)
+obj = YAML.safe_load(data)
+a = YAML.unsafe_load(data); b = YAML.safe_load(other)
+a = YAML.load(data, permitted_classes: [Date])

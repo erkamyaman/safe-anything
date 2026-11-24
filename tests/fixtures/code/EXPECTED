@@ -23,6 +23,9 @@ api/users_controller.rb:1 code.sql-injection
 api/users_controller.rb:3 code.command-injection
 api/users_controller.rb:4 code.unsafe-deserialization
 api/users_controller.rb:5 code.xss-raw-html
+api/users_controller.rb:6 code.unsafe-deserialization
+api/users_controller.rb:7 code.unsafe-deserialization
+api/users_controller.rb:9 code.unsafe-deserialization
 api/views.py:1 code.sql-injection
 api/views.py:10 code.unsafe-deserialization
 api/views.py:13 code.tls-verify-off
@@ -34,6 +37,9 @@ api/views.py:18 code.ssrf
 api/views.py:19 code.eval
 api/views.py:2 code.sql-injection
 api/views.py:20 code.template-injection
+api/views.py:21 code.unsafe-deserialization
+api/views.py:22 code.unsafe-deserialization
+api/views.py:25 code.unsafe-deserialization
 api/views.py:4 code.command-injection
 api/views.py:7 code.command-injection
 api/views.py:9 code.unsafe-deserialization

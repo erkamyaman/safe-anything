@@ -263,7 +263,7 @@ fn unpinned(argv: &[String]) -> Option<String> {
     let rest = &argv[1..];
     let positional = |skip: &[&str]| {
         rest.iter()
-            .find(|a| !a.starts_with('-') && !skip.contains(&a.as_str()))
+            .find(|a| !a.is_empty() && !a.starts_with('-') && !skip.contains(&a.as_str()))
             .cloned()
     };
     match base {
@@ -275,7 +275,10 @@ fn unpinned(argv: &[String]) -> Option<String> {
             if rest.first().map(String::as_str) == Some("dlx")
                 || rest.first().map(String::as_str) == Some("x") =>
         {
-            let pkg = rest[1..].iter().find(|a| !a.starts_with('-')).cloned()?;
+            let pkg = rest[1..]
+                .iter()
+                .find(|a| !a.is_empty() && !a.starts_with('-'))
+                .cloned()?;
             (!npm_pinned(&pkg)).then_some(pkg)
         }
         "uvx" | "pipx" => {
@@ -326,9 +329,13 @@ fn npm_pinned(pkg: &str) -> bool {
     if pkg.starts_with('.') || pkg.starts_with('/') {
         return true;
     }
-    match pkg[1..].rfind('@') {
+    // The first character is skipped so the `@` of a scope is not taken for a version.
+    let Some((start, _)) = pkg.char_indices().nth(1) else {
+        return false;
+    };
+    match pkg[start..].rfind('@') {
         Some(i) => {
-            let v = &pkg[i + 2..];
+            let v = &pkg[start + i + 1..];
             !v.is_empty() && v != "latest" && v.chars().next().is_some_and(|c| c.is_ascii_digit())
         }
         None => false,

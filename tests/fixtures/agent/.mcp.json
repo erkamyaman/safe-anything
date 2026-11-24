@@ -17,6 +17,9 @@
     "box": { "command": "docker", "args": ["run", "-i", "--rm", "acme/mcp"] },
     "remote": { "url": "http://mcp.acme-tools.io/sse" },
     "local": { "url": "http://localhost:3000/mcp" },
-    "tls": { "url": "https://mcp.acme-tools.io/mcp" }
+    "tls": { "url": "https://mcp.acme-tools.io/mcp" },
+    "empty": { "command": "npx", "args": [""] },
+    "empty-dlx": { "command": "pnpm", "args": ["dlx", ""] },
+    "accent": { "command": "npx", "args": ["é@1.0.0"] }
   }
 }

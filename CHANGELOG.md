@@ -2,10 +2,14 @@
 
 ## Unreleased
 
+- Agent: an MCP config whose `npx` (or `pnpm dlx`) argument is empty or starts with a non-ASCII
+  character no longer crashes the scan.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
   (`Pub` ecosystem). Packages from the `sdk` source, like `flutter`, are skipped.
 - Secrets: new rule `secret.gitlab-token` (critical) for GitLab personal access tokens (`glpat-` followed by 20 characters).
+- Secrets: new rule `secret.huggingface-token` (critical) for Hugging Face access tokens (`hf_` followed by 34 letters).
 - Secrets: new rule `secret.npm-token` (critical) for npm access tokens (`npm_` followed by 36 letters or digits).
+- Secrets: new rule `secret.mailgun-key` (critical) for Mailgun private API keys (`key-` followed by 32 lowercase hex characters).
 - Dependencies: `uv.lock` entries whose `source` is `editable`, `virtual` or `path` (the project itself or a
   local package) are no longer counted or looked up on PyPI.
 - Secrets: `secret.url-credentials` skips a connection string whose password is an angle-bracket placeholder

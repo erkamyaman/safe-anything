@@ -124,6 +124,12 @@ pub static RULES: &[Rule] = &[
         "An npm access token is written in the file."
     ),
     secret!(
+        "secret.huggingface-token",
+        Critical,
+        r"\bhf_[A-Za-z]{34}\b",
+        "A Hugging Face access token is written in the file."
+    ),
+    secret!(
         "secret.anthropic-key",
         Critical,
         r"\bsk-ant-[A-Za-z0-9_\-]{32,}",
@@ -140,6 +146,12 @@ pub static RULES: &[Rule] = &[
         High,
         r"\bAIza[0-9A-Za-z_\-]{35}",
         "A Google API key is written in the file."
+    ),
+    secret!(
+        "secret.mailgun-key",
+        Critical,
+        r"\bkey-[0-9a-f]{32}\b",
+        "A Mailgun API key is written in the file."
     ),
     secret!(
         "secret.private-key",
