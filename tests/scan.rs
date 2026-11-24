@@ -44,18 +44,22 @@ fn secrets_without_gitignore() {
         std::env::temp_dir().join(format!("safe-anything-no-gitignore-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    std::fs::write(root.join(".env"), "PORT=3000\n").unwrap();
+    std::fs::write(root.join(".env"), "SETTING=example-value\n").unwrap();
     let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
-    let found: Vec<String> = report
+    let finding = report
         .findings
         .iter()
-        .map(|f| format!("{}:{} {}", f.path, f.line, f.rule))
-        .collect();
+        .find(|f| f.rule == "secret.env-not-ignored")
+        .expect("expected an unignored .env finding");
     let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(finding.path, ".env");
+    assert_eq!(finding.line, 1);
     assert!(
-        found.iter().any(|f| f == ".env:1 secret.env-not-ignored"),
-        "expected .env:1 secret.env-not-ignored, found {found:?}"
+        finding.snippet.is_empty(),
+        "secret leaked in snippet: {}",
+        finding.snippet
     );
+    assert!(!format!("{finding:?}").contains("example-value"));
 }
 
 #[test]

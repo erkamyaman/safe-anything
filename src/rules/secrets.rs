@@ -28,6 +28,7 @@ pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
     if covered {
         return None;
     }
+    let has_gitignore = gitignore.is_some();
     let (file, src) = match gitignore {
         Some(src) => (".gitignore".to_string(), src),
         None => (
@@ -39,10 +40,14 @@ pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
     if text.suppressed(1) {
         return None;
     }
+    // `.env` contents are only needed to honor suppression directives; never
+    // copy the secret value into a diagnostic snippet.
+    let empty = Text::new("");
+    let finding_text = if has_gitignore { &text } else { &empty };
     let (id, severity, message) = ENV_NOT_IGNORED;
     Some(finding(
         &FileInfo::new(&file),
-        &text,
+        finding_text,
         1,
         Meta {
             id,
