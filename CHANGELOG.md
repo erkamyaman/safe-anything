@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Secrets: `secret.env-file` and `secret.env-example-value` now catch base64 values ending in `=` padding and
+  passwords with `!@#$%^&*`. A value that is only `*` characters or starts with `$` (a reference like
+  `$POSTGRES_PASSWORD`) is skipped.
 - Agent: an MCP config whose `npx` (or `pnpm dlx`) argument is empty or starts with a non-ASCII
   character no longer crashes the scan.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
