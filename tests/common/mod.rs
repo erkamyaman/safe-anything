@@ -7,6 +7,7 @@ fn body(n: usize, alphabet: &str) -> String {
 
 const MIXED: &str = "Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG";
 const UPPER: &str = "Q7MZ2XK9PL4VR8TN3WB6YH1CF5JD0SG";
+const LETTERS: &str = "QmZxKpLvRtNwByHcFjDsG";
 
 pub fn fake(name: &str) -> String {
     match name {
@@ -24,6 +25,7 @@ pub fn fake(name: &str) -> String {
         .concat(),
         "stripe-live" => ["sk", "_live_", &body(24, MIXED)].concat(),
         "npm" => ["np", "m_", &body(36, MIXED)].concat(),
+        "huggingface-token" => ["h", "f_", &body(34, LETTERS)].concat(),
         "stripe-test" => ["sk", "_test_", &body(24, MIXED)].concat(),
         "anthropic" => ["sk-", "ant-api03-", &body(40, MIXED)].concat(),
         "openai" => ["sk-", "proj-", &body(48, MIXED)].concat(),
