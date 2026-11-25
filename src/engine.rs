@@ -12,7 +12,7 @@ use crate::rules::{self, FileInfo};
 const MAX_BYTES: u64 = 2 * 1024 * 1024;
 /// Lockfiles get a larger limit: a mid-size monorepo's package-lock.json is
 /// several MB, and the dependency check is only as good as the lockfile it reads.
-const MAX_LOCK_BYTES: u64 = 64 * 1024 * 1024;
+pub(crate) const MAX_LOCK_BYTES: u64 = 64 * 1024 * 1024;
 const SKIP_DIRS: &[&str] = &[
     ".git",
     "node_modules",

@@ -175,7 +175,7 @@ pub struct Report {
     pub findings: Vec<Finding>,
     pub files_scanned: usize,
     pub packages_checked: usize,
-    /// Lockfiles too large to read (over 64 MB), so their packages were not checked.
+    /// Lockfiles too large to read (over `engine::MAX_LOCK_BYTES`), so their packages were not checked.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub lockfiles_too_large: Vec<String>,
     pub elapsed_ms: u64,
