@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
+  `github.event.workflow_run.head_branch`, `.display_title` and `.head_commit.message` pasted into a `run:`
+  step are reported. Fields like `workflow_run.id` and `workflow_run.conclusion` are not.
+
 ## 1.1.0 (2026-11-25)
 
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
