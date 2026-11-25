@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.linear-api-key` finds Linear API keys (`lin_api_` and 40 letters and digits) and
+  `secret.postman-api-key` finds Postman API keys (`PMAK-`, 24 hex, `-`, 34 hex). Both are critical.
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
   in JSON configs. `Authorization` and `Proxy-Authorization` always count. In `env` and headers alike, a
   value is judged after its auth scheme and with its variables taken out: `Bearer ${API_TOKEN}` and
