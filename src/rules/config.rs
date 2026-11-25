@@ -427,7 +427,8 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
 /// `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. A plain name
 /// counts as on too; Apache lets it replace the list so far, so this errs on the strict side
 /// (`TLSv1 TLSv1.2` is reported). Any other line, such as nginx `ssl_protocols` (no signs), is
-/// kept as the pattern found it.
+/// kept as the pattern found it, and so is one that this line alone cannot settle: it goes on
+/// after a trailing backslash, or uses a `${VAR}`. Quotes around words are dropped, as in Apache.
 fn old_tls_on(line: &str) -> bool {
     const OLD: [&str; 4] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1"];
     let lower = line.to_ascii_lowercase();
@@ -435,8 +436,12 @@ fn old_tls_on(line: &str) -> bool {
     if words.next() != Some("sslprotocol") {
         return true;
     }
+    if lower.trim_end().ends_with('\\') || lower.contains("${") {
+        return true;
+    }
     let mut on: Vec<&str> = Vec::new();
     for word in words {
+        let word = word.trim_matches(|c| c == '"' || c == '\'');
         let (add, name) = match word.strip_prefix('-') {
             Some(name) => (false, name),
             None => (true, word.strip_prefix('+').unwrap_or(word)),
@@ -471,6 +476,12 @@ mod tests {
             ("SSLProtocol -all +TLSv1.1 +TLSv1.2", true),
             ("SSLProtocol TLSv1 TLSv1.2", true),
             ("SSLProtocol -TLSv1 all", true),
+            // Apache removes argument quotes before reading the words.
+            ("SSLProtocol \"all\" \"-SSLv3\" '-TLSv1' -TLSv1.1", false),
+            ("SSLProtocol \"all -SSLv3\"", true),
+            // A line that goes on after a backslash, or a ${VAR}, is not read in full here.
+            ("SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1 \\", true),
+            ("SSLProtocol ${LEGACY} -SSLv3 -TLSv1 -TLSv1.1", true),
             ("ssl_protocols TLSv1 TLSv1.2;", true),
             (
                 "ssl_protocols TLSv1 TLSv1.2; # like SSLProtocol in Apache",

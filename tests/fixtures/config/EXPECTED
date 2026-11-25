@@ -20,6 +20,8 @@ infra/main.tf:35 config.tf-unencrypted-storage
 apache/site.conf:8 config.weak-tls-version
 apache/site.conf:11 config.weak-tls-version
 apache/site.conf:14 config.weak-tls-version
+apache/site.conf:17 config.weak-tls-version
+apache/site.conf:21 config.weak-tls-version
 infra/main.tf:11 config.tf-public-access-block
 infra/main.tf:13 config.tf-public-access-block
 infra/main.tf:17 config.tf-public-access-block
