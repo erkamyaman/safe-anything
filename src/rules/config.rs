@@ -423,17 +423,20 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
 }
 
 /// Whether an Apache `SSLProtocol` line leaves an old version on. Its words are applied in
-/// order: `all` turns every version on, `-name` turns one off, and `+name` or a plain name turns
-/// it on, so `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. Any
-/// other line (nginx `ssl_protocols` has no signs) is kept as the pattern found it.
+/// order: `all` turns every version on, `-name` turns one off, and `+name` turns it on, so
+/// `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. A plain name
+/// counts as on too; Apache lets it replace the list so far, so this errs on the strict side
+/// (`TLSv1 TLSv1.2` is reported). Any other line, such as nginx `ssl_protocols` (no signs), is
+/// kept as the pattern found it.
 fn old_tls_on(line: &str) -> bool {
     const OLD: [&str; 4] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1"];
     let lower = line.to_ascii_lowercase();
-    let Some(at) = lower.find("sslprotocol") else {
+    let mut words = lower.split_whitespace();
+    if words.next() != Some("sslprotocol") {
         return true;
-    };
+    }
     let mut on: Vec<&str> = Vec::new();
-    for word in lower[at + "sslprotocol".len()..].split_whitespace() {
+    for word in words {
         let (add, name) = match word.strip_prefix('-') {
             Some(name) => (false, name),
             None => (true, word.strip_prefix('+').unwrap_or(word)),
@@ -469,6 +472,10 @@ mod tests {
             ("SSLProtocol TLSv1 TLSv1.2", true),
             ("SSLProtocol -TLSv1 all", true),
             ("ssl_protocols TLSv1 TLSv1.2;", true),
+            (
+                "ssl_protocols TLSv1 TLSv1.2; # like SSLProtocol in Apache",
+                true,
+            ),
         ] {
             assert_eq!(old_tls_on(line), on, "{line}");
         }
