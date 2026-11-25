@@ -21,6 +21,9 @@ install.sh:10 config.remote-script
 install.sh:11 config.remote-script
 install.sh:12 config.remote-script
 install.sh:15 config.remote-script
+install.sh:16 config.remote-script
+install.ps1:1 config.remote-script
+install.ps1:2 config.remote-script
 Dockerfile:8 config.docker-root-user
 docker-compose.yml:3 config.privileged-container
 infra/main.tf:3 config.tf-open-ingress
