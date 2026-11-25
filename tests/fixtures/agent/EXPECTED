@@ -39,6 +39,7 @@ CLAUDE.md:2 agent.bypass-permissions
 CLAUDE.md:3 agent.remote-script
 CLAUDE.md:4 agent.remote-script
 CLAUDE.md:6 agent.remote-script
+CLAUDE.md:7 agent.remote-script
 scripts/setup.sh:1 config.remote-script
 .clinerules:1 agent.hidden-unicode
 .clinerules:2 agent.prompt-injection
