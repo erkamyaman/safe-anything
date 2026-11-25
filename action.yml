@@ -22,6 +22,9 @@ inputs:
   sarif:
     description: Path of the SARIF file to write, for github/codeql-action/upload-sarif
     default: safe-anything.sarif
+  baseline:
+    description: A file from `safe-anything --write-baseline`; findings already in it are left out of the report and the SARIF file and do not fail the job
+    default: ""
 outputs:
   sarif:
     description: Path of the SARIF file
@@ -62,8 +65,19 @@ runs:
         FAIL_ON: ${{ inputs.fail-on }}
         OFFLINE: ${{ inputs.offline }}
         SARIF: ${{ inputs.sarif }}
+        BASELINE: ${{ inputs.baseline }}
       run: |
         args=("$SCAN_PATH" --severity "$SEVERITY")
         [ "$OFFLINE" = true ] && args+=(--offline)
-        safe-anything "${args[@]}" --sarif --fail-on never > "$SARIF"
-        safe-anything "${args[@]}" --fail-on "$FAIL_ON"
+        [ -n "$BASELINE" ] && args+=(--baseline "$BASELINE")
+        case "$(safe-anything --help)" in
+          *--sarif-file*)
+            # One scan writes the SARIF file and prints the report.
+            safe-anything "${args[@]}" --sarif-file "$SARIF" --fail-on "$FAIL_ON"
+            ;;
+          *)
+            # A release from before --sarif-file (picked with the version input).
+            safe-anything "${args[@]}" --sarif --fail-on never > "$SARIF"
+            safe-anything "${args[@]}" --fail-on "$FAIL_ON"
+            ;;
+        esac

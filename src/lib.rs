@@ -18,19 +18,27 @@ pub struct RuleInfo {
     pub family: Family,
     pub severity: Severity,
     pub message: &'static str,
+    pub fix: &'static str,
     pub cwe: &'static str,
     pub owasp: &'static str,
     pub learn_more: &'static str,
 }
 
 impl RuleInfo {
-    fn new(id: &'static str, family: Family, severity: Severity, message: &'static str) -> Self {
+    fn new(
+        id: &'static str,
+        family: Family,
+        severity: Severity,
+        message: &'static str,
+        fix: &'static str,
+    ) -> Self {
         let r = refs::of(id);
         Self {
             id,
             family,
             severity,
             message,
+            fix,
             cwe: r.cwe,
             owasp: r.owasp,
             learn_more: r.learn_more,
@@ -42,23 +50,24 @@ pub fn rules() -> Vec<RuleInfo> {
     let mut seen = std::collections::HashSet::new();
     rules::all()
         .filter(|r| seen.insert(r.id))
-        .map(|r| RuleInfo::new(r.id, r.family, r.severity, r.message))
+        .map(|r| RuleInfo::new(r.id, r.family, r.severity, r.message, r.fix))
         .chain(
             rules::agent::STRUCTURED
                 .iter()
-                .map(|&(id, severity, message)| {
-                    RuleInfo::new(id, Family::Agent, severity, message)
+                .map(|&(id, severity, message, fix)| {
+                    RuleInfo::new(id, Family::Agent, severity, message, fix)
                 }),
         )
         .chain(std::iter::once({
-            let (id, severity, message) = rules::secrets::ENV_NOT_IGNORED;
-            RuleInfo::new(id, Family::Secret, severity, message)
+            let (id, severity, message, fix) = rules::secrets::ENV_NOT_IGNORED;
+            RuleInfo::new(id, Family::Secret, severity, message, fix)
         }))
         .chain(std::iter::once(RuleInfo::new(
             "dependency.known-vulnerability",
             Family::Dependency,
             Severity::High,
             "A locked dependency version has a published advisory (OSV.dev).",
+            "Upgrade the package to the fixed version the advisory names, or read the advisory for workarounds if none is published.",
         )))
         .collect()
 }

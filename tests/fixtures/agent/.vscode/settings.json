@@ -1,0 +1,11 @@
+{
+  "context_servers": {
+    "tools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@acme/mcp-server"
+      ]
+    }
+  }
+}

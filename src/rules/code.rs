@@ -243,6 +243,21 @@ pub static RULES: &[Rule] = &[
     rule!(
         "code.sql-injection",
         High,
+        go,
+        concat!(
+            r#"\.(?:Query|QueryRow|Exec)(?:\(|Context\(\s*[\w.]+(?:\(\))?\s*,)\s*(?:"\s*"#,
+            kw!(),
+            r#"[^"]*"|`\s*"#,
+            kw!(),
+            r#"[^`]*`)\s*\+\s*[A-Za-z_]"#
+        ),
+        None,
+        SQLI_MSG,
+        SQLI_FIX
+    ),
+    rule!(
+        "code.sql-injection",
+        High,
         jvm,
         concat!(r#""\s*"#, kw!(), r#"[^"]*"\s*\+\s*[A-Za-z_]"#),
         None,
@@ -329,10 +344,28 @@ pub static RULES: &[Rule] = &[
         "Allow only known hosts, block private and link-local addresses, and never pass the raw URL through."
     ),
     rule!(
+        "code.ssrf",
+        High,
+        go,
+        r"\bhttp\.(?:Get|Head|Post)\(\s*(?:r|req)\.(?:FormValue\(|URL\.Query\(\)\.Get\()",
+        None,
+        "The server fetches a URL taken from the request, so users can reach internal services (SSRF).",
+        "Allow only known hosts, block private and link-local addresses, and never pass the raw URL through."
+    ),
+    rule!(
+        "code.ssrf",
+        High,
+        php,
+        r"\b(?:file_get_contents|curl_init|fopen)\s*\(\s*\$_(?:GET|POST|REQUEST)\b",
+        None,
+        "The server fetches a URL taken from the request, so users can reach internal services (SSRF).",
+        "Allow only known hosts, block private and link-local addresses, and never pass the raw URL through."
+    ),
+    rule!(
         "code.open-redirect",
         Medium,
         js,
-        r"\b(?:res|response|reply)\.redirect\s*\(\s*req\.(?:query|params|body)",
+        r"\b(?:res|response|reply)\.redirect\s*\(\s*(?:\d{3}\s*,\s*)?req\.(?:query|params|body)",
         None,
         "The redirect target is taken from the request, so a crafted link can send users to any site from your domain (open redirect).",
         "Redirect only to a fixed path or a URL on an allow list; never pass request input straight to redirect."

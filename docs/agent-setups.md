@@ -10,10 +10,15 @@ decide what they may do are code, and safe-anything checks them like code.
 | `.mcp.json`, `claude_desktop_config.json`, `.claude/settings*.json`, `CLAUDE.md`, `.claude/{commands,agents,skills,hooks}/` | Claude Code, Claude Desktop |
 | `.codex/config.toml`, `AGENTS.md` | Codex |
 | `.cursor/mcp.json`, `.cursor/rules/`, `.cursorrules` | Cursor |
-| `.vscode/mcp.json`, `.github/copilot-instructions.md` | VS Code, Copilot |
+| `.vscode/mcp.json`, `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`, `.github/prompts/*.prompt.md` | VS Code, Copilot |
 | `.gemini/settings.json`, `.gemini/commands/`, `GEMINI.md` | Gemini CLI |
 | `opencode.json`, `opencode.jsonc` | OpenCode |
-| any `SKILL.md`, `.windsurfrules` | skills, Windsurf |
+| `mcp_config.json`, `.windsurf/rules/`, `.windsurfrules` | Windsurf |
+| `cline_mcp_settings.json`, `.clinerules` (a file or a folder) | Cline |
+| `.roo/rules/` | Roo Code |
+| `.kiro/steering/` | Kiro |
+| `.zed/settings.json`, and `.config/zed/settings.json` when you scan your home folder (`context_servers`) | Zed |
+| any `SKILL.md` | skills |
 
 ## What it flags
 

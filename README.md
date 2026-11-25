@@ -20,7 +20,7 @@ Every finding comes with the line, the reason and the fix.</p>
   <a href="https://github.com/erkamyaman/safe-anything"><img src="https://img.shields.io/github/stars/erkamyaman/safe-anything?style=social" alt="GitHub stars"></a>
 </p>
 
-<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 80 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
+<p align="center"><b><a href="#quick-start">Install</a></b> · <a href="https://github.com/erkamyaman/safe-anything/releases">Releases</a> · <a href="#for-ai-agents">Claude Code plugin</a> · <a href="#in-ci">GitHub Action</a> · <a href="docs/rules.md">All 92 rules</a> · <a href="docs/agent-setups.md">Agent setups</a><br>
 Made in Türkiye 🇹🇷 by <a href="https://github.com/erkamyaman">erKam Yaman</a>, who also made <a href="https://github.com/erkamyaman/rust-anything">rust-anything</a> · <a href="https://github.com/sponsors/erkamyaman">❤️ Sponsor me</a> · Sponsored by <a href="https://coderabbit.link/er-kam">CodeRabbit</a></p>
 
 <p align="center">
@@ -63,6 +63,7 @@ found, so it works as a pre-commit or CI check as is.
 ```bash
 safe-anything . --json             # machine-readable report
 safe-anything . --sarif            # GitHub code scanning
+safe-anything . --sarif-file out   # SARIF to the file out, the report on screen
 safe-anything . --offline          # no network (skips the dependency check)
 safe-anything . --severity medium  # hide low findings
 safe-anything . --fail-on never    # always exit 0 (or low, medium, high, critical)
@@ -78,24 +79,41 @@ safe-anything --list-rules
     not checked
   - any file over 2 MB, lockfiles included, so a lockfile that large gets no dependency check
   - `*.min.js`, `*.map`, `*.jsonl` and `*.log`
-  - binary files (a zero byte in the first 8 KB)
+  - binary files: images, fonts, archives, media and compiled files by their extension (`.png`, `.woff2`,
+    `.zip`, `.mp4`, `.class`, ...), and any other file with a zero byte in its first 8 KB. A text file
+    saved under one of those extensions is not scanned either.
   - `*.lock` files get the dependency check but no code rules
-- `safe-anything:ignore` in a comment silences that line (or the next one).
+- `safe-anything:ignore` in a comment silences that line (or the next one). Follow it with rule ids,
+  `// safe-anything:ignore code.weak-hash, code.eval`, to silence only those rules. An id that is no
+  rule (a typo) silences nothing, so the finding stays in the report.
 - In tests, specs and fixtures only real provider keys and private keys count, unless you pass
   `--include-tests`.
 
+On a codebase that already has findings, save them once and fail only on new ones:
+
+```bash
+safe-anything . --write-baseline .safe-anything-baseline.json
+safe-anything . --baseline .safe-anything-baseline.json
+```
+
+The baseline holds each finding's rule, path and a SHA-256 of its line, not the line itself, so it
+can be committed. A finding counts as known when all three match, wherever the line moved to. Paths
+are relative to the scanned folder, so scan the same folder you saved it from. Only files written by
+`--write-baseline` are read, not `--json` reports. Review changes to it like code: an entry added to
+it hides that finding.
+
 ## What it finds
 
-80 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
+92 rules, each with a CWE id, an OWASP category and a link to the OWASP page that explains it.
 The full list is in [docs/rules.md](docs/rules.md).
 
 | | |
 | --- | --- |
-| **Code** | SQL injection, command injection, XSS (`innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `echo $_GET`, `raw`), `eval` and `new Function`, path traversal, SSRF, unsafe deserialization (pickle, `yaml.load`, `ObjectInputStream`, `BinaryFormatter`, `unserialize`, `Marshal`), TLS checks turned off, MD5/SHA-1, DES/RC4/ECB, JWT `none`, template injection, debug mode, insecure cookies, `Math.random` tokens. JS/TS, Python, Go, Java, Kotlin, PHP, Ruby, C#, SQL |
-| **Secrets** | AWS, GitHub, Slack, Stripe, OpenAI, Anthropic and Google keys, private keys, passwords in code, credentials in connection strings, committed `.env` files, real values in `.env.example`, a `.gitignore` that misses `.env`, secrets behind public prefixes (`NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`) that ship in the client bundle |
+| **Code** | SQL injection, command injection, XSS (`innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `echo $_GET`, `raw`), `eval` and `new Function`, path traversal, file inclusion from request input, SSRF, open redirects, unsafe deserialization (pickle, `yaml.load`, `ObjectInputStream`, `BinaryFormatter`, `unserialize`, `Marshal`), TLS checks turned off, MD5/SHA-1, DES/RC4/ECB, JWT `none`, template injection, CORS `*`, debug mode, insecure cookies, `Math.random` tokens, `GRANT ALL` and plain-text passwords in SQL files. JS/TS, Python, Go, Java, Kotlin, PHP, Ruby, C#, SQL |
+| **Secrets** | AWS (key ids and secret access keys), GitHub, GitLab, Slack, Stripe, Shopify, npm, PyPI, OpenAI, Anthropic, Groq, Google, Hugging Face, Mailgun, SendGrid, Telegram, DigitalOcean and Twilio keys, Google OAuth client secrets, Slack and Discord webhook URLs, private keys (also inside service-account JSON), passwords in code, credentials in connection strings, committed `.env` files, real values in `.env.example`, a `.gitignore` that misses `.env`, secrets behind public prefixes (`NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`) that ship in the client bundle |
 | **Agent setups** | `bypassPermissions` and `--dangerously-skip-permissions`, pre-approved `Bash`, `enableAllProjectMcpServers`, MCP servers run with unpinned `npx`/`uvx`/`docker`, MCP tokens in plain text, remote MCP over `http://`, `curl \| sh` in hooks and skills, prompt-injection text, skills that read `~/.ssh` or cloud credentials, invisible Unicode in instructions. [More](docs/agent-setups.md) |
-| **Mobile** | Android `debuggable`, cleartext traffic, exported content providers, WebView file access and JS bridges, world-readable files; iOS ATS turned off; tokens in UserDefaults, SharedPreferences, AsyncStorage or localStorage |
-| **Config** | Docker (unpinned base, root, secrets in `ENV`, `ADD <url>`), GitHub Actions (`pull_request_target`, `write-all`, actions on `@main`, script injection from PR titles), privileged containers, `hostNetwork`, open Terraform ingress, public buckets, nginx autoindex, TLS 1.0/1.1 |
+| **Mobile** | Android `debuggable`, `allowBackup`, cleartext traffic, exported content providers, WebView file access and JS bridges, world-readable files; iOS ATS turned off; tokens in UserDefaults, SharedPreferences, AsyncStorage or localStorage |
+| **Config** | Docker (unpinned base, root, secrets in `ENV`, `ADD <url>`), `curl \| sh` in scripts, Dockerfiles and workflow `run:` steps, GitHub Actions (`pull_request_target`, `write-all`, actions on `@main`, script injection from PR titles), privileged containers, `hostNetwork`, Terraform (open ingress, public buckets, S3 public access blocks turned off, public or unencrypted databases), nginx autoindex, TLS 1.0/1.1 |
 | **Dependencies** | every locked version in `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `requirements*.txt`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `Gemfile.lock`, `composer.lock` and `pubspec.lock`, checked against [OSV.dev](https://osv.dev), with the nearest fixed version |
 
 <p align="center">
@@ -130,6 +148,7 @@ Tools: `scan` (path, offline, severity, include_tests) and `list_rules`. The ski
 - uses: erkamyaman/safe-anything@v1.0.2
   with:
     fail-on: high
+    # baseline: .safe-anything-baseline.json   # fail only on findings not in it
 - uses: github/codeql-action/upload-sarif@v4
   if: always()
   with:
@@ -175,7 +194,7 @@ lockfile listed under Dependencies. Nothing is executed. The only network call i
 names and versions to OSV.dev ([privacy](docs/privacy.md)).
 
 It finds known patterns; it does not trace data through your program. A clean scan means none of
-these 80 problems were found, not that the code is safe. [Design notes](docs/adr).
+these 92 problems were found, not that the code is safe. [Design notes](docs/adr).
 
 ## Credits
 

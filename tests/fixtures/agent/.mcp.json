@@ -85,6 +85,9 @@
         "X-Api-Token": "ApiKey ${ACME_KEY}",
         "X-Acme-Key": "<your acme key here>"
       }
-    }
+    },
+    "mapped": { "type": "http", "url": "http://[::ffff:203.0.113.5]:8080/mcp" },
+    "upper": { "type": "http", "url": "HTTP://203.0.113.5/mcp" },
+    "local-v6": { "type": "http", "url": "http://[::1]:8080/mcp" }
   }
 }

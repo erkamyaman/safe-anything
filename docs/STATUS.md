@@ -23,6 +23,7 @@ by this repository's tests (a fixture per family with safe look-alikes that must
 | Terminal | Tested | `tests/cli.rs` |
 | `--json` | Tested | `tests/cli.rs` |
 | `--sarif` | Tested | shape checked in `tests/cli.rs`; not yet uploaded to GitHub code scanning |
+| `--sarif-file` | Tested | `tests/cli.rs`: same SARIF as `--sarif`, written by the run that prints the report and sets the exit code |
 | MCP (`safe-anything mcp`) | Tested | initialize, tools/list, tools/call over stdio in `tests/cli.rs`; not yet run inside an agent |
 | GitHub Action (`action.yml`) | Not run | needs a published release to download |
 

@@ -9,10 +9,21 @@ const MIXED: &str = "Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG";
 const UPPER: &str = "Q7MZ2XK9PL4VR8TN3WB6YH1CF5JD0SG";
 const LETTERS: &str = "QmZxKpLvRtNwByHcFjDsG";
 const HEX: &str = "a3f91c07d5e284b6";
+// Unlike the others, so a leak of this body is not mistaken for another token.
+const KEY_BODY: &str = "Zr8Wq2Xn5Mb7Vc4Lk1Jh6Gf9Dd3Ss0AaUe";
 
 pub fn fake(name: &str) -> String {
     match name {
         "aws" => ["AK", "IA", &body(16, UPPER)].concat(),
+        "aws-secret" => [
+            &body(18, MIXED),
+            "/",
+            &body(10, LETTERS),
+            "+",
+            &body(10, HEX),
+        ]
+        .concat(),
+        "aws-secret-example" => [&body(30, MIXED), "EXAMPLE", "KEY"].concat(),
         "github" => ["gh", "p_", &body(36, MIXED)].concat(),
         "gitlab" => ["gl", "pat-", &body(20, MIXED)].concat(),
         "github-pat" => ["github", "_pat_", &body(82, MIXED)].concat(),
@@ -21,6 +32,17 @@ pub fn fake(name: &str) -> String {
             "xb-",
             "4815162342-",
             "1123581321345-",
+            &body(24, MIXED),
+        ]
+        .concat(),
+        "slack-webhook" => [
+            "https://hooks.",
+            "slack.com/services/",
+            "T0",
+            &body(9, UPPER),
+            "/B0",
+            &body(9, UPPER),
+            "/",
             &body(24, MIXED),
         ]
         .concat(),
@@ -34,6 +56,7 @@ pub fn fake(name: &str) -> String {
         "google-oauth" => ["GO", "CSPX-", &body(28, MIXED)].concat(),
         "google-oauth-hyphen" => ["GO", "CSPX-", &body(27, MIXED), "-"].concat(),
         "mailgun" => ["ke", "y-", &body(32, HEX)].concat(),
+        "groq" => ["gs", "k_", &body(52, MIXED)].concat(),
         "telegram" => ["1234", "567890", ":", &body(35, MIXED)].concat(),
         "telegram-hyphen" => ["1234", "567890", ":", &body(34, MIXED), "-"].concat(),
         "password" => ["hunter2", "hunter2"].concat(),
@@ -56,6 +79,36 @@ pub fn fake(name: &str) -> String {
             &body(48, MIXED),
         ]
         .concat(),
+        // How a Google service-account JSON file stores a key: one JSON
+        // string, with `\n` escapes instead of line breaks.
+        "private-key-json" => [
+            "-----BEGIN ",
+            "PRIVATE KEY-----\\n",
+            "MIIEvQIBADANBgkq",
+            &body(48, KEY_BODY),
+            "\\n",
+            &body(64, KEY_BODY),
+            "\\n",
+            &body(40, KEY_BODY),
+            "=\\n-----END ",
+            "PRIVATE KEY-----\\n",
+        ]
+        .concat(),
+        "discord-webhook" => [
+            "https://disc",
+            "ord.com/api/webhooks/",
+            "1234567890",
+            "12345678/",
+            &body(34, MIXED),
+            "-",
+            &body(33, MIXED),
+        ]
+        .concat(),
+        "sendgrid-key" => ["S", "G.", &body(22, MIXED), ".", &body(43, MIXED)].concat(),
+        "pypi-token" => ["py", "pi-", "AgEIcHlw", "aS5vcmc", &body(70, MIXED)].concat(),
+        "shopify-token" => ["sh", "pat_", &body(32, HEX)].concat(),
+        "digitalocean-token" => ["do", "p_v1_", &body(64, HEX)].concat(),
+        "twilio" => ["S", "K", &body(32, HEX)].concat(),
         other => panic!("no fake value named {other}"),
     }
 }

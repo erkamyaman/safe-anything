@@ -3,6 +3,9 @@
 .github/workflows/ci.yml:2 config.gha-pull-request-target
 .github/workflows/ci.yml:3 config.gha-write-all
 .github/workflows/ci.yml:8 config.gha-unpinned-action
+.github/workflows/ci.yml:16 config.remote-script
+.github/workflows/ci.yml:20 config.remote-script
+.github/workflows/ci.yml:25 config.remote-script
 Dockerfile:1 config.docker-unpinned-image
 Dockerfile:3 config.docker-unpinned-image
 Dockerfile:4 config.docker-secret-env
@@ -12,6 +15,11 @@ Dockerfile:8 config.docker-root-user
 docker-compose.yml:3 config.privileged-container
 infra/main.tf:3 config.tf-open-ingress
 infra/main.tf:6 config.tf-public-bucket
+infra/main.tf:34 config.tf-public-database
+infra/main.tf:35 config.tf-unencrypted-storage
+infra/main.tf:11 config.tf-public-access-block
+infra/main.tf:13 config.tf-public-access-block
+infra/main.tf:17 config.tf-public-access-block
 k8s/deploy.yaml:2 config.k8s-host-access
 k8s/deploy.yaml:5 config.privileged-container
 k8s/deploy.yaml:6 config.privileged-container

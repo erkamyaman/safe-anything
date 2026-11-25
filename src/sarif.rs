@@ -21,6 +21,21 @@ fn score(s: Severity) -> &'static str {
     }
 }
 
+/// Fix texts are plain text; keep `*`, `_`, `<` and the like from turning into markdown or HTML.
+fn escape_markdown(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if matches!(
+            c,
+            '\\' | '`' | '*' | '_' | '[' | ']' | '<' | '>' | '&' | '#' | '|' | '!'
+        ) {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn render(report: &Report) -> Value {
     let used: BTreeSet<&str> = report.findings.iter().map(|f| f.rule.as_str()).collect();
     let rules: Vec<Value> = crate::rules()
@@ -31,6 +46,17 @@ pub fn render(report: &Report) -> Value {
                 "id": r.id,
                 "name": r.id,
                 "shortDescription": { "text": r.message },
+                "fullDescription": { "text": r.message },
+                "help": {
+                    "text": format!(
+                        "Fix: {}\n\n{}, OWASP {}\n\nLearn more: {}",
+                        r.fix, r.cwe, r.owasp, r.learn_more
+                    ),
+                    "markdown": format!(
+                        "**Fix:** {}\n\n{}, OWASP {}\n\n[Learn more]({})",
+                        escape_markdown(r.fix), r.cwe, r.owasp, r.learn_more
+                    ),
+                },
                 "helpUri": r.learn_more,
                 "defaultConfiguration": { "level": level(r.severity) },
                 "properties": {

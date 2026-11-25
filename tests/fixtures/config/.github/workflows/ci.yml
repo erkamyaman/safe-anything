@@ -13,3 +13,13 @@ jobs:
           branch: ${{ github.head_ref }}
       - run: |
           git push origin ${{ github.head_ref }}
+      - run: curl -fsSL https://get.example.com | sh
+      - run: curl -fsSL -o install.sh https://get.example.com
+      - run: |
+          echo "installing tools"
+          curl -fsSL https://get.example.com/tools.sh | sudo bash
+      - name: Do not run curl -fsSL https://get.example.com | sh
+        run: echo "pinned installer"
+      # - run: curl -fsSL https://get.example.com | sh
+      - run: |
+          C:\Windows\System32\curl.exe -fsSL https://get.example.com | bash

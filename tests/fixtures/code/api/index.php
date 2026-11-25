@@ -9,3 +9,5 @@ $query = "SELECT first_name FROM users WHERE user_id = '$id';";
 $cmd = shell_exec('ping -c 4 ' . $target);
 $q = "SELECT * FROM t WHERE id = ?";
 $insert = "UPDATE users SET password = '$pass_new' WHERE user = 1";
+$page = file_get_contents($_GET['url']);
+$page = file_get_contents("https://api.example.com/status");

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "remote": {
+      "url": "http://mcp.example.net/sse",
+      "disabled": false
+    }
+  }
+}

@@ -1,10 +1,11 @@
 web/package-lock.json:7 dependency.known-vulnerability
 api/requirements.txt:3 dependency.known-vulnerability
 svc/go.mod:6 dependency.known-vulnerability
-rb/Gemfile.lock:4 dependency.known-vulnerability
+rb/Gemfile.lock:19 dependency.known-vulnerability
 rs/Cargo.lock:5 dependency.known-vulnerability
 php/composer.lock:5 dependency.known-vulnerability
 pnpm/pnpm-lock.yaml:29 dependency.known-vulnerability
 uv/uv.lock:6 dependency.known-vulnerability
 dart/pubspec.lock:24 dependency.known-vulnerability
 yarn/yarn.lock:6 dependency.known-vulnerability
+py/poetry.lock:5 dependency.known-vulnerability

@@ -1,0 +1,14 @@
+{
+  "theme": "One Dark",
+  "context_servers": {
+    "tools": {
+      "source": "custom",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@acme/mcp-server"
+      ],
+      "env": {}
+    }
+  }
+}

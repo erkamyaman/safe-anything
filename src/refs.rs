@@ -233,10 +233,20 @@ pub fn of(id: &str) -> Refs {
         "config.gha-script-injection" => {
             r!("CWE-78", "A03:2021 Injection", "CI_CD_Security_Cheat_Sheet")
         }
-        "config.tf-open-ingress" | "config.tf-public-bucket" => r!(
-            "CWE-284",
-            "A01:2021 Broken Access Control",
-            "Infrastructure_as_Code_Security_Cheat_Sheet"
+        "config.tf-open-ingress"
+        | "config.tf-public-bucket"
+        | "config.tf-public-access-block"
+        | "config.tf-public-database" => {
+            r!(
+                "CWE-284",
+                "A01:2021 Broken Access Control",
+                "Infrastructure_as_Code_Security_Cheat_Sheet"
+            )
+        }
+        "config.tf-unencrypted-storage" => r!(
+            "CWE-311",
+            "A02:2021 Cryptographic Failures",
+            "Cryptographic_Storage_Cheat_Sheet"
         ),
         "config.nginx-autoindex" => r!(
             "CWE-548",
