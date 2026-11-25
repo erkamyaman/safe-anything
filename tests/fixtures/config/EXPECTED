@@ -26,6 +26,7 @@ install.sh:18 config.remote-script
 install.sh:19 config.remote-script
 install.sh:20 config.remote-script
 install.sh:21 config.remote-script
+install.sh:22 config.remote-script
 install.ps1:1 config.remote-script
 install.ps1:2 config.remote-script
 install.ps1:4 config.remote-script
