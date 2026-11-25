@@ -69,3 +69,4 @@ web/app.js:6 code.eval
 web/app.js:7 code.eval
 web/login.spec.ts:3 secret.aws-access-key
 web/page.vue:1 code.xss-v-html
+web/app.js:34 code.open-redirect
