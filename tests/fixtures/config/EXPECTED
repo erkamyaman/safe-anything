@@ -30,6 +30,7 @@ install.ps1:1 config.remote-script
 install.ps1:2 config.remote-script
 install.ps1:4 config.remote-script
 install.ps1:5 config.remote-script
+install.ps1:6 config.remote-script
 Dockerfile:8 config.docker-root-user
 docker-compose.yml:3 config.privileged-container
 infra/main.tf:3 config.tf-open-ingress
