@@ -35,3 +35,5 @@
 .mcp.json:7 secret.github-token
 CLAUDE.md:2 agent.bypass-permissions
 scripts/setup.sh:1 config.remote-script
+.mcp.json:89 agent.mcp-insecure-url
+.mcp.json:90 agent.mcp-insecure-url
