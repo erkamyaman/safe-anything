@@ -50,7 +50,14 @@ fn skipped_by_name(info: &FileInfo) -> bool {
 /// Reads a file whose first 8 KB hold no zero byte. A binary file is left
 /// after those 8 KB instead of being read in full. `len` is the size from the
 /// file's metadata; a file that has grown past `max` since is skipped.
-fn read_text(path: &Path, len: u64, max: u64) -> Option<Vec<u8>> {
+/// A file `read_text` could read. `None` from it means binary or unreadable.
+enum Contents {
+    Text(Vec<u8>),
+    /// The file grew past the limit after its size was checked.
+    TooLarge,
+}
+
+fn read_text(path: &Path, len: u64, max: u64) -> Option<Contents> {
     const HEAD: u64 = 8192;
     let mut file = File::open(path).ok()?;
     let mut bytes = Vec::with_capacity(usize::try_from(len.min(HEAD)).ok()?);
@@ -64,10 +71,10 @@ fn read_text(path: &Path, len: u64, max: u64) -> Option<Vec<u8>> {
         bytes.reserve(rest);
         file.take(max + 1 - HEAD).read_to_end(&mut bytes).ok()?;
         if bytes.len() as u64 > max {
-            return None;
+            return Some(Contents::TooLarge);
         }
     }
-    Some(bytes)
+    Some(Contents::Text(bytes))
 }
 
 pub struct Scanned {
@@ -141,8 +148,15 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
                     }
                     return WalkState::Continue;
                 }
-                let Some(bytes) = read_text(path, len, max) else {
-                    return WalkState::Continue;
+                let bytes = match read_text(path, len, max) {
+                    Some(Contents::Text(bytes)) => bytes,
+                    Some(Contents::TooLarge) => {
+                        if lockfile {
+                            out.lock().unwrap().lockfiles_too_large.push(rel);
+                        }
+                        return WalkState::Continue;
+                    }
+                    None => return WalkState::Continue,
                 };
                 let text = String::from_utf8_lossy(&bytes);
                 // A lockfile over the usual limit is read for its packages only,
@@ -181,16 +195,23 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("grown.txt");
         let max = usize::try_from(MAX_BYTES).unwrap();
+        let text_len = |len: u64| match read_text(&path, len, MAX_BYTES) {
+            Some(Contents::Text(bytes)) => Some(bytes.len()),
+            _ => None,
+        };
         // The metadata said 100 bytes, but the file is now over the limit.
         std::fs::write(&path, "x".repeat(max + 1)).unwrap();
-        assert!(read_text(&path, 100, MAX_BYTES).is_none());
+        assert!(matches!(
+            read_text(&path, 100, MAX_BYTES),
+            Some(Contents::TooLarge)
+        ));
         std::fs::write(&path, "x".repeat(max)).unwrap();
-        assert_eq!(read_text(&path, 100, MAX_BYTES).map(|b| b.len()), Some(max));
+        assert_eq!(text_len(100), Some(max));
         std::fs::write(&path, "x".repeat(10)).unwrap();
-        assert_eq!(
-            read_text(&path, MAX_BYTES, MAX_BYTES).map(|b| b.len()),
-            Some(10)
-        );
+        assert_eq!(text_len(MAX_BYTES), Some(10));
+        // A binary file is neither text nor too large.
+        std::fs::write(&path, b"x\0y").unwrap();
+        assert!(read_text(&path, 3, MAX_BYTES).is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
