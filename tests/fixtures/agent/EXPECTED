@@ -34,6 +34,8 @@
 .mcp.json:7 agent.mcp-plaintext-secret
 .mcp.json:7 secret.github-token
 CLAUDE.md:2 agent.bypass-permissions
+CLAUDE.md:3 agent.remote-script
+CLAUDE.md:4 agent.remote-script
 scripts/setup.sh:1 config.remote-script
 .clinerules:1 agent.hidden-unicode
 .clinerules:2 agent.prompt-injection

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Config and agent: `remote-script` also reports `curl ... | sudo -E bash` (sudo with flags, as in NodeSource's
+  install line) and a shell run on a downloaded script, `bash -c "$(curl ...)"` and its backtick form. `sudo tee`
+  and a `$(curl ...)` only assigned to a variable stay quiet.
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
   in JSON configs. `Authorization` and `Proxy-Authorization` always count. In `env` and headers alike, a
   value is judged after its auth scheme and with its variables taken out: `Bearer ${API_TOKEN}` and

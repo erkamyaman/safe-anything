@@ -11,6 +11,12 @@ Dockerfile:3 config.docker-unpinned-image
 Dockerfile:4 config.docker-secret-env
 Dockerfile:6 config.docker-add-url
 Dockerfile:7 config.remote-script
+install.sh:1 config.remote-script
+install.sh:3 config.remote-script
+install.sh:4 config.remote-script
+install.sh:5 config.remote-script
+install.sh:6 config.remote-script
+install.sh:7 config.remote-script
 Dockerfile:8 config.docker-root-user
 docker-compose.yml:3 config.privileged-container
 infra/main.tf:3 config.tf-open-ingress
