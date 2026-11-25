@@ -207,7 +207,7 @@ pub static RULES: &[Rule] = &[
         "config.weak-tls-version",
         Medium,
         server_conf,
-        r"(?i)(?:ssl_protocols|SSLProtocol)[^;\n]*\b(?:SSLv[23]|TLSv1|TLSv1\.1)(?:\s|;|$)",
+        r#"(?i)(?:ssl_protocols|SSLProtocol)[^;\n]*\b(?:SSLv[23]|TLSv1|TLSv1\.1)(?:\s|;|$|["'])"#,
         None,
         "Old TLS or SSL versions are enabled; they have known attacks.",
         "Allow only TLSv1.2 and TLSv1.3."
@@ -442,6 +442,9 @@ fn old_tls_on(line: &str) -> bool {
     let mut on: Vec<&str> = Vec::new();
     for word in words {
         let word = word.trim_matches(|c| c == '"' || c == '\'');
+        if word.contains(['"', '\'']) {
+            return true;
+        }
         let (add, name) = match word.strip_prefix('-') {
             Some(name) => (false, name),
             None => (true, word.strip_prefix('+').unwrap_or(word)),
@@ -479,6 +482,8 @@ mod tests {
             // Apache removes argument quotes before reading the words.
             ("SSLProtocol \"all\" \"-SSLv3\" '-TLSv1' -TLSv1.1", false),
             ("SSLProtocol \"all -SSLv3\"", true),
+            // Quotes that run two words together cannot be split safely here.
+            ("SSLProtocol \"-all\"\"+TLSv1.2\"", true),
             // A line that goes on after a backslash, or a ${VAR}, is not read in full here.
             ("SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1 \\", true),
             ("SSLProtocol ${LEGACY} -SSLv3 -TLSv1 -TLSv1.1", true),
