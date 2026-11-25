@@ -40,6 +40,7 @@ api/views.py:20 code.template-injection
 api/views.py:21 code.unsafe-deserialization
 api/views.py:22 code.unsafe-deserialization
 api/views.py:25 code.unsafe-deserialization
+api/views.py:26 code.open-redirect
 api/views.py:4 code.command-injection
 api/views.py:7 code.command-injection
 api/views.py:9 code.unsafe-deserialization
@@ -61,6 +62,7 @@ web/app.js:27 code.insecure-cookie
 web/app.js:28 code.jwt-none
 web/app.js:29 code.cors-wildcard
 web/app.js:30 code.insecure-random
+web/app.js:32 code.open-redirect
 web/app.js:4 code.xss-inner-html
 web/app.js:5 code.xss-document-write
 web/app.js:6 code.eval
