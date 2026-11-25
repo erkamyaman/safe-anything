@@ -155,6 +155,12 @@ pub static RULES: &[Rule] = &[
         "An OpenAI API key is written in the file."
     ),
     secret!(
+        "secret.groq-key",
+        Critical,
+        r"\bgsk_[A-Za-z0-9]{52}\b",
+        "A Groq API key is written in the file."
+    ),
+    secret!(
         "secret.google-api-key",
         High,
         r"\bAIza[0-9A-Za-z_\-]{35}",

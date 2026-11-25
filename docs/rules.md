@@ -32,7 +32,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`code.sql-grant-all`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-250](https://cwe.mitre.org/data/definitions/250.html) | A01:2021 Broken Access Control | A database user gets every privilege on every database. |
 | [`code.sql-plaintext-password`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A database password is written in a SQL file. |
 
-## Secrets (19)
+## Secrets (20)
 
 | Rule | Severity | CWE | OWASP | What it means |
 | --- | --- | --- | --- | --- |
@@ -45,6 +45,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`secret.huggingface-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Hugging Face access token is written in the file. |
 | [`secret.anthropic-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | An Anthropic API key is written in the file. |
 | [`secret.openai-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | An OpenAI API key is written in the file. |
+| [`secret.groq-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Groq API key is written in the file. |
 | [`secret.google-api-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Google API key is written in the file. |
 | [`secret.mailgun-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Mailgun API key is written in the file. |
 | [`secret.telegram-bot-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Telegram bot token is written in the file. |
