@@ -4,7 +4,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::rules::FileInfo;
+use crate::rules::{FileInfo, Text};
 use crate::{Family, Finding, Severity};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -38,27 +38,40 @@ fn pkg(eco: &str, name: &str, version: &str, file: &FileInfo, line: usize) -> Pa
     }
 }
 
+type Parser = fn(&FileInfo, &str) -> Vec<Package>;
+
+/// The parser for a lockfile name, or `None` when the file is not one.
+fn parser(name: &str) -> Option<Parser> {
+    Some(match name {
+        "package-lock.json" | "npm-shrinkwrap.json" => npm_lock,
+        "yarn.lock" => yarn_lock,
+        "pnpm-lock.yaml" => pnpm_lock,
+        "cargo.lock" => |f, t| toml_packages(f, t, "crates.io", true),
+        "poetry.lock" | "uv.lock" | "pdm.lock" => |f, t| toml_packages(f, t, "PyPI", false),
+        "go.mod" => go_mod,
+        "gemfile.lock" => gemfile_lock,
+        "composer.lock" => composer_lock,
+        "pipfile.lock" => pipfile_lock,
+        "pubspec.lock" => pubspec_lock,
+        n if n.starts_with("requirements") && n.ends_with(".txt") => requirements,
+        _ => return None,
+    })
+}
+
+/// True for the files `parse_lockfile` reads packages from.
+pub fn is_lockfile(file: &FileInfo) -> bool {
+    parser(&file.name).is_some()
+}
+
 pub fn parse_lockfile(file: &FileInfo, text: &str) -> Vec<Package> {
-    match file.name.as_str() {
-        "package-lock.json" | "npm-shrinkwrap.json" => npm_lock(file, text),
-        "yarn.lock" => yarn_lock(file, text),
-        "pnpm-lock.yaml" => pnpm_lock(file, text),
-        "cargo.lock" => toml_packages(file, text, "crates.io", true),
-        "poetry.lock" | "uv.lock" | "pdm.lock" => toml_packages(file, text, "PyPI", false),
-        "go.mod" => go_mod(file, text),
-        "gemfile.lock" => gemfile_lock(file, text),
-        "composer.lock" => composer_lock(file, text),
-        "pipfile.lock" => pipfile_lock(file, text),
-        "pubspec.lock" => pubspec_lock(file, text),
-        n if n.starts_with("requirements") && n.ends_with(".txt") => requirements(file, text),
-        _ => Vec::new(),
-    }
+    parser(&file.name).map_or_else(Vec::new, |parse| parse(file, text))
 }
 
 fn npm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let Ok(json) = serde_json::from_str::<Value>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
     let mut cursor = 0;
     if let Some(packages) = json.get("packages").and_then(Value::as_object) {
@@ -73,14 +86,14 @@ fn npm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                 continue;
             };
             let at = find_from(text, &mut cursor, &format!("\"{key}\""));
-            let line = line_of(text, find_after(text, at, "\"version\""));
+            let line = lines.line_of(find_after(text, at, "\"version\""));
             out.push(pkg("npm", name, version, file, line));
         }
     } else if let Some(deps) = json.get("dependencies").and_then(Value::as_object) {
         for (name, p) in deps {
             if let Some(version) = p.get("version").and_then(Value::as_str) {
                 let at = find_from(text, &mut cursor, &format!("\"{name}\""));
-                out.push(pkg("npm", name, version, file, line_of(text, at)));
+                out.push(pkg("npm", name, version, file, lines.line_of(at)));
             }
         }
     }
@@ -251,6 +264,7 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let Ok(json) = serde_json::from_str::<Value>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
     let mut cursor = 0;
     for key in ["packages", "packages-dev"] {
@@ -270,7 +284,7 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                     n,
                     v,
                     file,
-                    line_of(text, find_after(text, at, "\"version\"")),
+                    lines.line_of(find_after(text, at, "\"version\"")),
                 ));
             }
         }
@@ -282,6 +296,7 @@ fn pipfile_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let Ok(json) = serde_json::from_str::<Value>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
     for key in ["default", "develop"] {
         let Some(map) = json.get(key).and_then(Value::as_object) else {
@@ -300,7 +315,7 @@ fn pipfile_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                     n,
                     v,
                     file,
-                    line_of(text, find_after(text, at, "\"version\"")),
+                    lines.line_of(find_after(text, at, "\"version\"")),
                 ));
             }
         }
@@ -371,10 +386,6 @@ fn find_from(text: &str, cursor: &mut usize, needle: &str) -> usize {
 
 fn find_after(text: &str, at: usize, needle: &str) -> usize {
     text[at..].find(needle).map(|i| at + i).unwrap_or(at)
-}
-
-fn line_of(text: &str, offset: usize) -> usize {
-    text[..offset].matches('\n').count() + 1
 }
 
 pub fn findings(packages: &[Package], found: HashMap<usize, Vec<Advisory>>) -> Vec<Finding> {

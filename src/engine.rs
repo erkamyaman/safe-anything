@@ -10,6 +10,9 @@ use crate::deps::{self, Package};
 use crate::rules::{self, FileInfo};
 
 const MAX_BYTES: u64 = 2 * 1024 * 1024;
+/// Lockfiles get a larger limit: a mid-size monorepo's package-lock.json is
+/// several MB, and the dependency check is only as good as the lockfile it reads.
+const MAX_LOCK_BYTES: u64 = 64 * 1024 * 1024;
 const SKIP_DIRS: &[&str] = &[
     ".git",
     "node_modules",
@@ -46,8 +49,8 @@ fn skipped_by_name(info: &FileInfo) -> bool {
 
 /// Reads a file whose first 8 KB hold no zero byte. A binary file is left
 /// after those 8 KB instead of being read in full. `len` is the size from the
-/// file's metadata; a file that has grown past `MAX_BYTES` since is skipped.
-fn read_text(path: &Path, len: u64) -> Option<Vec<u8>> {
+/// file's metadata; a file that has grown past `max` since is skipped.
+fn read_text(path: &Path, len: u64, max: u64) -> Option<Vec<u8>> {
     const HEAD: u64 = 8192;
     let mut file = File::open(path).ok()?;
     let mut bytes = Vec::with_capacity(usize::try_from(len.min(HEAD)).ok()?);
@@ -57,12 +60,10 @@ fn read_text(path: &Path, len: u64) -> Option<Vec<u8>> {
     }
     // Fewer than 8 KB means the end of the file was reached already.
     if bytes.len() as u64 == HEAD {
-        let rest = usize::try_from(len.min(MAX_BYTES).saturating_sub(HEAD)).ok()?;
+        let rest = usize::try_from(len.min(max).saturating_sub(HEAD)).ok()?;
         bytes.reserve(rest);
-        file.take(MAX_BYTES + 1 - HEAD)
-            .read_to_end(&mut bytes)
-            .ok()?;
-        if bytes.len() as u64 > MAX_BYTES {
+        file.take(max + 1 - HEAD).read_to_end(&mut bytes).ok()?;
+        if bytes.len() as u64 > max {
             return None;
         }
     }
@@ -74,6 +75,8 @@ pub struct Scanned {
     pub findings: Vec<Finding>,
     pub packages: Vec<Package>,
     pub env_files: Vec<String>,
+    /// Lockfiles left out of the dependency check because they are over `MAX_LOCK_BYTES`.
+    pub lockfiles_too_large: Vec<String>,
 }
 
 pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
@@ -82,6 +85,7 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
         findings: Vec::new(),
         packages: Vec::new(),
         env_files: Vec::new(),
+        lockfiles_too_large: Vec::new(),
     });
     let single_file = root.is_file();
     let base = if single_file {
@@ -129,14 +133,21 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
                     return WalkState::Continue;
                 }
                 let len = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                if len > MAX_BYTES {
+                let lockfile = deps::is_lockfile(&info);
+                let max = if lockfile { MAX_LOCK_BYTES } else { MAX_BYTES };
+                if len > max {
+                    if lockfile {
+                        out.lock().unwrap().lockfiles_too_large.push(rel);
+                    }
                     return WalkState::Continue;
                 }
-                let Some(bytes) = read_text(path, len) else {
+                let Some(bytes) = read_text(path, len, max) else {
                     return WalkState::Continue;
                 };
                 let text = String::from_utf8_lossy(&bytes);
-                let findings = if info.ext == "lock" {
+                // A lockfile over the usual limit is read for its packages only,
+                // as no file that size was checked by the rules before.
+                let findings = if info.ext == "lock" || bytes.len() as u64 > MAX_BYTES {
                     Vec::new()
                 } else {
                     rules::check(&info, &text, include_tests)
@@ -155,6 +166,7 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
     let mut scanned = out.into_inner().unwrap();
     scanned.packages.sort();
     scanned.packages.dedup();
+    scanned.lockfiles_too_large.sort();
     scanned
 }
 
@@ -171,11 +183,14 @@ mod tests {
         let max = usize::try_from(MAX_BYTES).unwrap();
         // The metadata said 100 bytes, but the file is now over the limit.
         std::fs::write(&path, "x".repeat(max + 1)).unwrap();
-        assert!(read_text(&path, 100).is_none());
+        assert!(read_text(&path, 100, MAX_BYTES).is_none());
         std::fs::write(&path, "x".repeat(max)).unwrap();
-        assert_eq!(read_text(&path, 100).map(|b| b.len()), Some(max));
+        assert_eq!(read_text(&path, 100, MAX_BYTES).map(|b| b.len()), Some(max));
         std::fs::write(&path, "x".repeat(10)).unwrap();
-        assert_eq!(read_text(&path, MAX_BYTES).map(|b| b.len()), Some(10));
+        assert_eq!(
+            read_text(&path, MAX_BYTES, MAX_BYTES).map(|b| b.len()),
+            Some(10)
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

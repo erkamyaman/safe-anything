@@ -278,3 +278,60 @@ fn deps() {
     // `GEM` sections count.
     check_with("deps", options, Some(27));
 }
+
+/// Writes a package-lock.json listing `n` packages, padded with a long
+/// `resolved` URL so a few thousand entries pass the size of an ordinary file.
+/// Keys are sorted, as npm writes them.
+fn big_lockfile(dir: &std::path::Path, n: usize) -> u64 {
+    let mut text = String::from(
+        "{\n  \"name\": \"app\",\n  \"lockfileVersion\": 3,\n  \"packages\": {\n    \"\": { \"name\": \"app\" }",
+    );
+    let mut ids: Vec<usize> = (0..n).collect();
+    ids.sort_by_key(|i| format!("pkg-{i}"));
+    for i in ids {
+        text.push_str(&format!(
+            ",\n    \"node_modules/pkg-{i}\": {{\n      \"version\": \"1.0.{i}\",\n      \"resolved\": \"https://registry.npmjs.org/pkg-{i}/-/pkg-{i}-1.0.{i}.tgz\",\n      \"integrity\": \"sha512-{}\"\n    }}",
+            "a".repeat(88)
+        ));
+    }
+    text.push_str("\n  }\n}\n");
+    std::fs::write(dir.join("package-lock.json"), &text).unwrap();
+    text.len() as u64
+}
+
+#[test]
+fn large_lockfile_is_still_read() {
+    let root = std::env::temp_dir().join(format!("safe-anything-big-lock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let size = big_lockfile(&root, 12_000);
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert!(
+        size > 2 * 1024 * 1024,
+        "the lockfile should be over 2 MB, it is {size} bytes"
+    );
+    assert_eq!(
+        report.packages_checked, 12_000,
+        "packages read from a {size}-byte lockfile"
+    );
+}
+
+#[test]
+fn lockfile_over_the_limit_is_named() {
+    let root = std::env::temp_dir().join(format!("safe-anything-huge-lock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("web")).unwrap();
+    // Sized from the metadata, so these are never read.
+    let over = 64 * 1024 * 1024 + 1;
+    for name in ["web/yarn.lock", "notes.txt"] {
+        std::fs::File::create(root.join(name))
+            .unwrap()
+            .set_len(over)
+            .unwrap();
+    }
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(report.lockfiles_too_large, ["web/yarn.lock"]);
+    assert_eq!(report.packages_checked, 0);
+}

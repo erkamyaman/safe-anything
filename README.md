@@ -77,7 +77,8 @@ safe-anything --list-rules
   - folders `.git`, `node_modules`, `target`, `vendor`, `dist`, `build`, `.next`, `.venv`, `venv`,
     `__pycache__`, `Pods`, `.gradle` and `.claude/worktrees`, so generated code in `build/` is
     not checked
-  - any file over 2 MB, lockfiles included, so a lockfile that large gets no dependency check
+  - any file over 2 MB. Lockfiles are read up to 64 MB, for the dependency check only (no code rules
+    past 2 MB); a larger one is named in the report as not checked
   - `*.min.js`, `*.map`, `*.jsonl` and `*.log`
   - binary files: images, fonts, archives, media and compiled files by their extension (`.png`, `.woff2`,
     `.zip`, `.mp4`, `.class`, ...), and any other file with a zero byte in its first 8 KB. A text file

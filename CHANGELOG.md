@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Dependencies: a lockfile over 2 MB is read again (up to 64 MB) instead of being skipped with "0 packages
+  checked". A larger one is named in the report (`lockfiles_too_large` in JSON). npm, Composer and Pipfile
+  lockfiles are also read much faster: 0.12 s instead of 4.3 s for a 3 MB package-lock.json.
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
   in JSON configs. `Authorization` and `Proxy-Authorization` always count. In `env` and headers alike, a
   value is judged after its auth scheme and with its variables taken out: `Bearer ${API_TOKEN}` and
