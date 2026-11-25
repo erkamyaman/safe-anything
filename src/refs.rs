@@ -64,6 +64,11 @@ pub fn of(id: &str) -> Refs {
             "A10:2021 Server-Side Request Forgery",
             "Server_Side_Request_Forgery_Prevention_Cheat_Sheet"
         ),
+        "code.open-redirect" => r!(
+            "CWE-601",
+            "A01:2021 Broken Access Control",
+            "Unvalidated_Redirects_and_Forwards_Cheat_Sheet"
+        ),
         "code.tls-verify-off" => r!(
             "CWE-295",
             "A02:2021 Cryptographic Failures",
