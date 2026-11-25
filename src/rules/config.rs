@@ -417,13 +417,62 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
                     .is_some_and(is_public_access_block)
             })
         }
+        "config.weak-tls-version" => old_tls_on(text.line(f.line)),
         _ => true,
     }
+}
+
+/// Whether an Apache `SSLProtocol` line leaves an old version on. Its words are applied in
+/// order: `all` turns every version on, `-name` turns one off, and `+name` or a plain name turns
+/// it on, so `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. Any
+/// other line (nginx `ssl_protocols` has no signs) is kept as the pattern found it.
+fn old_tls_on(line: &str) -> bool {
+    const OLD: [&str; 4] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1"];
+    let lower = line.to_ascii_lowercase();
+    let Some(at) = lower.find("sslprotocol") else {
+        return true;
+    };
+    let mut on: Vec<&str> = Vec::new();
+    for word in lower[at + "sslprotocol".len()..].split_whitespace() {
+        let (add, name) = match word.strip_prefix('-') {
+            Some(name) => (false, name),
+            None => (true, word.strip_prefix('+').unwrap_or(word)),
+        };
+        let names = if name == "all" {
+            &OLD[1..]
+        } else {
+            std::slice::from_ref(&name)
+        };
+        for &n in names {
+            on.retain(|&o| o != n);
+            if add {
+                on.push(n);
+            }
+        }
+    }
+    on.iter().any(|n| OLD.contains(n))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sslprotocol_minus_turns_a_version_off() {
+        for (line, on) in [
+            ("SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1", false),
+            ("  sslprotocol ALL -sslv3 -tlsv1 -tlsv1.1", false),
+            ("SSLProtocol -all +TLSv1.2 +TLSv1.3", false),
+            ("SSLProtocol all -SSLv3", true),
+            ("SSLProtocol all -SSLv3 -TLSv1", true),
+            ("SSLProtocol -all +TLSv1.1 +TLSv1.2", true),
+            ("SSLProtocol TLSv1 TLSv1.2", true),
+            ("SSLProtocol -TLSv1 all", true),
+            ("ssl_protocols TLSv1 TLSv1.2;", true),
+        ] {
+            assert_eq!(old_tls_on(line), on, "{line}");
+        }
+    }
 
     /// Whether the first `key = false` in `src` is reported: it matches and sits in an S3
     /// public access block.

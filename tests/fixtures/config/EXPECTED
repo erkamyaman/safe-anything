@@ -17,6 +17,9 @@ infra/main.tf:3 config.tf-open-ingress
 infra/main.tf:6 config.tf-public-bucket
 infra/main.tf:34 config.tf-public-database
 infra/main.tf:35 config.tf-unencrypted-storage
+apache/site.conf:8 config.weak-tls-version
+apache/site.conf:11 config.weak-tls-version
+apache/site.conf:14 config.weak-tls-version
 infra/main.tf:11 config.tf-public-access-block
 infra/main.tf:13 config.tf-public-access-block
 infra/main.tf:17 config.tf-public-access-block

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Config: `config.weak-tls-version` reads Apache's `SSLProtocol` signs, so `all -SSLv3 -TLSv1 -TLSv1.1` is no
+  longer reported, while `all -SSLv3` (TLS 1.0 still on), `+TLSv1.1` and a plain `TLSv1` still are.
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
   in JSON configs. `Authorization` and `Proxy-Authorization` always count. In `env` and headers alike, a
   value is judged after its auth scheme and with its variables taken out: `Bearer ${API_TOKEN}` and
