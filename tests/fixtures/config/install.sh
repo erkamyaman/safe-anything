@@ -11,3 +11,5 @@ curl -fsSL https://example.org/i.sh | sudo -u www-data bash
 curl -fsSL https://example.org/i.sh | sudo --preserve-env=PATH,HOME bash
 dash -c "$(wget -qO- https://example.com/i.sh)"
 curl -fsSL https://example.org/k.gpg | sudo -u www-data tee /srv/k.gpg
+curl -fsSL https://example.org/key.gpg | sudo -E tee bash
+curl -fsSL https://example.org/i.sh | sudo -E --user root -H bash
