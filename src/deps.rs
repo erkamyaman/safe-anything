@@ -220,14 +220,18 @@ fn go_mod(file: &FileInfo, text: &str) -> Vec<Package> {
 
 fn gemfile_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let mut out = Vec::new();
+    // Only a `GEM` section lists gems from a gem server. `GIT` and `PATH`
+    // sections list gems built from a git repository or a local folder.
+    let mut in_gem = false;
     let mut in_specs = false;
     for (i, line) in text.lines().enumerate() {
-        if line.trim() == "specs:" {
-            in_specs = true;
+        if !line.starts_with(' ') {
+            in_gem = line.trim_end() == "GEM";
+            in_specs = false;
             continue;
         }
-        if !line.starts_with(' ') {
-            in_specs = false;
+        if line.trim() == "specs:" {
+            in_specs = in_gem;
             continue;
         }
         if in_specs

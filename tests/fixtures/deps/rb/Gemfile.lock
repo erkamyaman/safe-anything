@@ -1,3 +1,18 @@
+GIT
+  remote: https://github.com/example/rails-fork.git
+  revision: 0123456789abcdef0123456789abcdef01234567
+  branch: main
+  specs:
+    actionpack (7.2.0.alpha)
+      rack (>= 2.2.4)
+    activesupport (7.2.0.alpha)
+
+PATH
+  remote: engines/billing
+  specs:
+    billing (0.1.0)
+      rails (>= 7.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -5,5 +20,21 @@ GEM
     rails (7.1.0)
       rack (>= 2.2.4)
 
+GEM
+  remote: https://gems.example.com/
+  specs:
+    acme-auth (1.4.2)
+
 PLATFORMS
   ruby
+
+DEPENDENCIES
+  acme-auth!
+  actionpack!
+  activesupport!
+  billing!
+  rack (= 2.0.0)
+  rails (~> 7.1)
+
+BUNDLED WITH
+   2.5.6

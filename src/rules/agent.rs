@@ -313,10 +313,16 @@ fn check_server(
         .get("url")
         .or_else(|| server.get("serverUrl"))
         .and_then(Value::as_str)
-        && let Some(rest) = url.strip_prefix("http://")
+        && let Some(rest) = url
+            .get(..7)
+            .filter(|prefix| prefix.eq_ignore_ascii_case("http://"))
+            .map(|_| &url[7..])
     {
-        let host = rest.split(['/', ':']).next().unwrap_or("");
-        if !matches!(host, "localhost" | "127.0.0.1" | "[") && !host.starts_with("[::1") {
+        let host = match rest.find(']') {
+            Some(end) if rest.starts_with('[') => &rest[..end + 1],
+            _ => rest.split(['/', ':']).next().unwrap_or(""),
+        };
+        if !matches!(host, "localhost" | "127.0.0.1" | "[::1]") {
             let line = line_after(text, start, url);
             out.push(finding(
             file,

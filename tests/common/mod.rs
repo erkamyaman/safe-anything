@@ -9,6 +9,8 @@ const MIXED: &str = "Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG";
 const UPPER: &str = "Q7MZ2XK9PL4VR8TN3WB6YH1CF5JD0SG";
 const LETTERS: &str = "QmZxKpLvRtNwByHcFjDsG";
 const HEX: &str = "a3f91c07d5e284b6";
+// Unlike the others, so a leak of this body is not mistaken for another token.
+const KEY_BODY: &str = "Zr8Wq2Xn5Mb7Vc4Lk1Jh6Gf9Dd3Ss0AaUe";
 
 pub fn fake(name: &str) -> String {
     match name {
@@ -53,6 +55,21 @@ pub fn fake(name: &str) -> String {
             "PRIVATE KEY-----\n",
             "MIIEowIBAAKCAQEA",
             &body(48, MIXED),
+        ]
+        .concat(),
+        // How a Google service-account JSON file stores a key: one JSON
+        // string, with `\n` escapes instead of line breaks.
+        "private-key-json" => [
+            "-----BEGIN ",
+            "PRIVATE KEY-----\\n",
+            "MIIEvQIBADANBgkq",
+            &body(48, KEY_BODY),
+            "\\n",
+            &body(64, KEY_BODY),
+            "\\n",
+            &body(40, KEY_BODY),
+            "=\\n-----END ",
+            "PRIVATE KEY-----\\n",
         ]
         .concat(),
         other => panic!("no fake value named {other}"),

@@ -10,8 +10,12 @@ api/handler.go:1 code.command-injection
 api/handler.go:3 code.sql-injection
 api/handler.go:4 code.tls-verify-off
 api/handler.go:5 code.weak-hash
+api/handler.go:9 code.sql-injection
+api/handler.go:11 code.sql-injection
+api/handler.go:6 code.ssrf
 api/index.php:1 code.sql-injection
 api/index.php:11 code.sql-injection
+api/index.php:12 code.ssrf
 api/index.php:2 code.command-injection
 api/index.php:3 code.file-inclusion
 api/index.php:4 code.unsafe-deserialization
@@ -69,3 +73,4 @@ web/app.js:6 code.eval
 web/app.js:7 code.eval
 web/login.spec.ts:3 secret.aws-access-key
 web/page.vue:1 code.xss-v-html
+web/app.js:34 code.open-redirect

@@ -192,6 +192,12 @@ fn secrets_are_redacted_in_every_output() {
     let token_tail = &token[token.len() - 16..];
     let password = common::fake("password");
     let aws = common::fake("aws");
+    let key_json = common::fake("private-key-json");
+    let key_parts: Vec<&str> = key_json
+        .split("\\n")
+        .filter(|part| !part.contains("PRIVATE KEY") && !part.is_empty())
+        .collect();
+    assert_eq!(key_parts.len(), 3);
     for args in [
         vec![fixture("agent"), "--offline".into()],
         vec![fixture("agent"), "--offline".into(), "--json".into()],
@@ -203,6 +209,12 @@ fn secrets_are_redacted_in_every_output() {
         assert!(!out.contains(token_tail), "token leaked with {args:?}");
         assert!(!out.contains(&password), "password leaked with {args:?}");
         assert!(!out.contains(&aws[4..]), "AWS key leaked with {args:?}");
+        for part in &key_parts {
+            assert!(
+                !out.contains(&part[4..]),
+                "private key leaked with {args:?}"
+            );
+        }
     }
     let (_, out) = run(&[&fixture("agent"), "--offline"]);
     assert!(

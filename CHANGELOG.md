@@ -10,6 +10,8 @@
 - Agent: `agent.unrestricted-shell` now reads `permissions.allow` in `.claude/settings*.json` instead of matching `"Bash"` anywhere in the file, so entries in `deny`, `ask`, or hook matchers are no longer flagged.
 - Secrets: `secret.env-not-ignored` is reported at the `.env` file when the project has no `.gitignore`
   at all. Example files like `.env.example` alone no longer trigger it.
+- Secrets: `secret.env-not-ignored` reads `.gitignore` the way git does, so only a line that really ignores
+  `.env` counts. `.envrc`, `.env.local`, `.env/`, `# .env` or a later `!.env` no longer hide it.
 - Secrets: `secret.env-file` and `secret.env-example-value` now catch base64 values ending in `=` padding and
   passwords with `!@#$%^&*`. A value that is only `*` characters or starts with `$` (a reference like
   `$POSTGRES_PASSWORD`) is skipped.
@@ -19,6 +21,7 @@
   only part of an ordinary word, so `PATH`, `PYTHONPATH`, `NODE_PATH`, `DISPATCH_MODE`, `AUTHOR`,
   `MONKEY_PATCH` and `KEYCHAIN_PROFILE` are not reported. `GITHUB_PAT`, `githubPat`, `OPENAI_APIKEY`,
   `daemonKey`, `patHash` and `clientSecret` still are.
+- Agent: `agent.mcp-insecure-url` now reads a bracketed IPv6 host up to its closing `]` (only `[::1]` counts as local) and matches `http://` without regard to case.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
   (`Pub` ecosystem). Packages from the `sdk` source, like `flutter`, are skipped.
 - Secrets: new rule `secret.gitlab-token` (critical) for GitLab personal access tokens (`glpat-` followed by 20 characters).
@@ -28,10 +31,19 @@
 - Secrets: new rule `secret.telegram-bot-token` (high) for Telegram bot tokens (8 to 10 digits, a colon, then 35 letters, digits, `_` or `-`).
 - Secrets: new rule `secret.groq-key` (critical) for Groq API keys (`gsk_` followed by 52 letters or digits).
 - Code: new rule `code.open-redirect` (medium) for redirects built straight from request input (`res.redirect(req.query.next)`, `redirect(request.args.get("next"))`); a redirect to a fixed path stays unflagged.
+- Code: `code.sql-injection` also catches Go queries built by concatenation in `db.Query`, `db.QueryRow`, `db.Exec`
+  and their `Context` variants (`db.Query("SELECT * FROM t WHERE id=" + id)`). A query with a placeholder stays unflagged.
+- Code: `code.ssrf` also covers Go (`http.Get`, `http.Head`, `http.Post` with `r.FormValue(...)` or `r.URL.Query().Get(...)`)
+  and PHP (`file_get_contents`, `curl_init`, `fopen` with `$_GET`, `$_POST` or `$_REQUEST`). A fixed URL stays unflagged.
+- Code: `code.open-redirect` now also matches a status code first, so `res.redirect(301, req.query.next)` is reported; a redirect to a fixed path stays unflagged.
 - Dependencies: `uv.lock` entries whose `source` is `editable`, `virtual` or `path` (the project itself or a
   local package) are no longer counted or looked up on PyPI.
+- Dependencies: `Gemfile.lock` gems from `GIT` and `PATH` sections (a git repository or a local folder) are
+  no longer counted or looked up on RubyGems. Only gems in `GEM` sections are.
 - Secrets: `secret.url-credentials` skips a connection string whose password is an angle-bracket placeholder
   such as `mongodb+srv://<username>:<password>@host/db`, the form MongoDB Atlas shows in its docs.
+- Secrets: `secret.private-key` also finds a key written with `\n` escapes inside a string, the way a Google
+  service-account JSON file stores it. The whole key body is masked in the output.
 - Dependencies: `pnpm-lock.yaml` is read again. A blank line ended the `packages:` section, and
   pnpm writes one right after it, so every pnpm project reported 0 packages checked.
 - Agent: new rule `agent.mcp-auto-approve` (high) for `"enableAllProjectMcpServers": true` in

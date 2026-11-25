@@ -83,6 +83,53 @@ fn env_example_without_gitignore() {
 }
 
 #[test]
+fn gitignore_must_really_match_env() {
+    // (.gitignore contents, env file in the project, expect the finding)
+    let cases = [
+        (".envrc\n", ".env", true),
+        (".env.local\n", ".env", true),
+        (".env.example\n", ".env", true),
+        (".env.*\n", ".env", true),
+        ("# .env\n", ".env", true),
+        (".env/\n", ".env", true),
+        ("config/.env\n", ".env", true),
+        (".env*\n!.env\n", ".env", true),
+        ("node_modules\n", ".env", true),
+        (".env\n", ".env.production", false),
+        ("/.env\n", ".env.production", false),
+        ("**/.env\n", ".env.production", false),
+        ("*.env\n", ".env.production", false),
+        (".env   \n", ".env.production", false),
+        (".env\r\n", ".env.production", false),
+        ("\u{feff}.env\n", ".env.production", false),
+        (".env*\n!.env.production\n", ".env.production", false),
+        (".env\n!.env.example\n", ".env.production", false),
+    ];
+    let root =
+        std::env::temp_dir().join(format!("safe-anything-env-patterns-{}", std::process::id()));
+    let mut wrong = Vec::new();
+    for (gitignore, env, expected) in cases {
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join(".gitignore"), gitignore).unwrap();
+        std::fs::write(root.join(env), "DEBUG=1\n").unwrap();
+        let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+        let found = report
+            .findings
+            .iter()
+            .any(|f| f.rule == "secret.env-not-ignored");
+        if found != expected {
+            wrong.push((gitignore, env, expected));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    assert!(
+        wrong.is_empty(),
+        "(gitignore, env file, expected finding): {wrong:#?}"
+    );
+}
+
+#[test]
 fn code() {
     check("code");
 }
@@ -145,7 +192,9 @@ fn deps() {
         advisories: Some(Box::new(known)),
         include_tests: false,
     };
-    // The web/yarn.lock fixture contains a `my-app@workspace:.` entry that must be
-    // skipped (not counted as a dependency). The expected package count stays 22.
-    check_with("deps", options, Some(22));
+    // Entries that are not fetched from a registry must be skipped (not counted
+    // as a dependency): the `my-app@workspace:.` entry in web/yarn.lock, and the
+    // gems in the `GIT` and `PATH` sections of rb/Gemfile.lock. Only the gems in
+    // its two `GEM` sections count.
+    check_with("deps", options, Some(25));
 }

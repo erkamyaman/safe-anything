@@ -31,3 +31,5 @@ const token = Math.random().toString(36);
 const jitter = Math.random() * 100;
 res.redirect(req.query.next);
 res.redirect('/home');
+res.redirect(301, req.query.next);
+res.redirect(301, '/home');

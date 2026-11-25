@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use ignore::gitignore::GitignoreBuilder;
+
 use super::{FileInfo, Meta, Rule, Text, finding};
 use crate::{Family, Finding, Severity};
 
@@ -19,12 +21,9 @@ pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
     let first_env = env_files.iter().filter(|p| !is_env_template(p)).min()?;
     // With no .gitignore nothing is ignored, so report at the env file itself.
     let gitignore = std::fs::read_to_string(root.join(".gitignore")).ok();
-    let covered = gitignore.as_deref().is_some_and(|src| {
-        src.lines().map(str::trim).any(|l| {
-            let l = l.trim_start_matches("**/").trim_start_matches('/');
-            l.starts_with(".env") || l.starts_with("*.env")
-        })
-    });
+    let covered = gitignore
+        .as_deref()
+        .is_some_and(|src| ignores_env(root, src));
     if covered {
         return None;
     }
@@ -58,6 +57,20 @@ pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
             secret: None,
         },
     ))
+}
+
+/// Whether `.gitignore` text really ignores a `.env` file at the root, read
+/// the way git reads it: comments, negations, anchors, directory-only
+/// patterns, trailing spaces and a leading byte order mark all count. A line
+/// that is not a valid pattern is skipped.
+fn ignores_env(root: &Path, src: &str) -> bool {
+    let mut builder = GitignoreBuilder::new(root);
+    for line in src.trim_start_matches('\u{feff}').lines() {
+        let _ = builder.add_line(None, line);
+    }
+    builder
+        .build()
+        .is_ok_and(|gitignore| gitignore.matched(root.join(".env"), false).is_ignore())
 }
 
 fn any_text(_: &FileInfo) -> bool {
@@ -181,7 +194,10 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.private-key",
         Critical,
-        r"-----BEGIN (?:(?:RSA|EC|DSA|OPENSSH|PGP|ENCRYPTED) )?PRIVATE KEY(?: BLOCK)?-----\r?\n([A-Za-z0-9+/=]{20,})",
+        // A PEM file has real line breaks. A JSON string (a Google
+        // service-account key) has `\n` escapes instead; there the whole body
+        // is on the line, so all of it is captured for redaction.
+        r"-----BEGIN (?:(?:RSA|EC|DSA|OPENSSH|PGP|ENCRYPTED) )?PRIVATE KEY(?: BLOCK)?-----(?:\r?\n([A-Za-z0-9+/=]{20,})|\\n([A-Za-z0-9+/=]{20,}(?:\\n[A-Za-z0-9+/=]+)*))",
         "A private key is stored in the repository."
     ),
     Rule {
