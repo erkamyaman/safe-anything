@@ -93,6 +93,7 @@
 - CLI: SARIF rules have a `fullDescription` and a `help` text (the fix, the CWE and OWASP category, and the
   link), so a GitHub code scanning alert shows the fix in its side panel. `--list-rules --json` and the MCP
   `list_rules` tool include each rule's `fix`.
+- CLI: `safe-anything --help` now shows a few examples, including `safe-anything mcp`, and how to ignore a finding (`safe-anything:ignore` or `.safe-anything-ignore`).
 - Secrets: new rule `secret.google-oauth-secret` (high) for Google OAuth client secrets (`GOCSPX-` followed by 28 letters, digits, `_` or `-`).
 
 ## 1.0.2 (2026-11-23)

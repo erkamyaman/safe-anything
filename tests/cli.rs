@@ -559,3 +559,12 @@ fn public_env_secret_value_is_redacted() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn help_shows_mcp_and_how_to_ignore() {
+    let (code, out) = run(&["--help"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("safe-anything mcp"), "{out}");
+    assert!(out.contains("safe-anything:ignore"), "{out}");
+    assert!(out.contains(".safe-anything-ignore"), "{out}");
+}

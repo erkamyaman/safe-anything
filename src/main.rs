@@ -7,10 +7,23 @@ use clap::Parser;
 use safe_anything::{Family, Finding, Options, Severity, report};
 use serde::{Deserialize, Serialize};
 
+const AFTER_HELP: &str = "\
+Examples:
+  safe-anything .
+  safe-anything . --offline --fail-on never
+  safe-anything . --sarif > results.sarif
+  safe-anything . --write-baseline baseline.json
+  safe-anything . --baseline baseline.json
+  safe-anything mcp    serve scan and list_rules to AI agents over MCP
+
+To ignore a finding, put safe-anything:ignore in a comment on that line or the line above it
+(follow it with rule ids to silence only those), or list paths in .safe-anything-ignore.";
+
 #[derive(Parser)]
 #[command(
     version,
-    about = "Find vulnerabilities in any app, and in the AI agent setup that builds it."
+    about = "Find vulnerabilities in any app, and in the AI agent setup that builds it.",
+    after_help = AFTER_HELP
 )]
 struct Cli {
     /// Folder or file to scan
