@@ -439,6 +439,8 @@ fn old_tls_on(line: &str) -> bool {
     if lower.trim_end().ends_with('\\') || lower.contains("${") {
         return true;
     }
+    // Only the known names are tracked, so a long line costs one pass; an unknown word keeps the finding.
+    const KNOWN: [&str; 6] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1", "tlsv1.2", "tlsv1.3"];
     let mut on: Vec<&str> = Vec::new();
     for word in words {
         let word = word.trim_matches(|c| c == '"' || c == '\'');
@@ -449,6 +451,13 @@ fn old_tls_on(line: &str) -> bool {
             Some(name) => (false, name),
             None => (true, word.strip_prefix('+').unwrap_or(word)),
         };
+        if name != "all" && !KNOWN.contains(&name) {
+            return true;
+        }
+        // A plain name (no sign) replaces the set so far, as mod_ssl does.
+        if !word.starts_with(['+', '-']) {
+            on.clear();
+        }
         let names = if name == "all" {
             &OLD[1..]
         } else {
@@ -477,7 +486,12 @@ mod tests {
             ("SSLProtocol all -SSLv3", true),
             ("SSLProtocol all -SSLv3 -TLSv1", true),
             ("SSLProtocol -all +TLSv1.1 +TLSv1.2", true),
-            ("SSLProtocol TLSv1 TLSv1.2", true),
+            // A plain name replaces the set so far, as mod_ssl does: only TLSv1.2 is on.
+            ("SSLProtocol TLSv1 TLSv1.2", false),
+            ("SSLProtocol TLSv1.2 TLSv1", true),
+            ("SSLProtocol TLSv1.2 +TLSv1.1", true),
+            // An unknown word cannot be weighed, so the finding stays.
+            ("SSLProtocol -all +TLSv1.2 bogus", true),
             ("SSLProtocol -TLSv1 all", true),
             // Apache removes argument quotes before reading the words.
             ("SSLProtocol \"all\" \"-SSLv3\" '-TLSv1' -TLSv1.1", false),

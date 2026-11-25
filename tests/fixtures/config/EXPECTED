@@ -19,7 +19,6 @@ infra/main.tf:34 config.tf-public-database
 infra/main.tf:35 config.tf-unencrypted-storage
 apache/site.conf:8 config.weak-tls-version
 apache/site.conf:11 config.weak-tls-version
-apache/site.conf:14 config.weak-tls-version
 apache/site.conf:17 config.weak-tls-version
 apache/site.conf:21 config.weak-tls-version
 apache/site.conf:27 config.weak-tls-version
