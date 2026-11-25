@@ -15,3 +15,4 @@ curl -fsSL https://example.org/key.gpg | sudo -E tee bash
 curl -fsSL https://example.org/i.sh | sudo -E --user root -H bash
 curl -fsSL https://example.org/i.sh | sudo -u "$USER" bash
 curl -fsSL https://example.org/i.sh | sudo -u python cat
+curl -fsSL https://example.org/i.sh | sudo -D /tmp bash
