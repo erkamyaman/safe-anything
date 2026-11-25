@@ -54,7 +54,7 @@ pub static RULES: &[Rule] = &[
         "config.remote-script",
         Medium,
         shell_or_workflow,
-        r#"\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:-[-\w=]*\s+(?:\w+\s+)?)*)?(?:sh|bash|zsh|python3?|iex)\b|\b(?:ba|z)?sh\s+-c\s+["']?(?:\$\(|`)\s*(?:curl|wget)\b[^)`\n]*?(?:https?://|\$\{?\w)"#,
+        r#"\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:-[-\w=,]*\s+(?:[\w.][\w.-]*\s+)?)*)?(?:sh|bash|zsh|python3?|iex)\b|\b(?:ba|z|da|k)?sh\s+-c\s+["']?(?:\$\(|`)\s*(?:curl|wget)\b[^)`\n]*?(?:https?://|\$\{?\w)"#,
         None,
         "A script is downloaded and piped straight into a shell, with no pinning or checksum.",
         "Download to a file, verify a pinned checksum or signature, then run it; or use a package manager."
