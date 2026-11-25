@@ -328,7 +328,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.postman-api-key",
         Critical,
-        r"\bPMAK-[0-9a-f]{24}-[0-9a-f]{34}\b",
+        r"\bPMAK-[0-9a-fA-F]{24}-[0-9a-fA-F]{34}\b",
         "A Postman API key is written in the file."
     ),
     secret!(

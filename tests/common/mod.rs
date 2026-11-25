@@ -111,6 +111,9 @@ pub fn fake(name: &str) -> String {
         "twilio" => ["S", "K", &body(32, HEX)].concat(),
         "linear" => ["lin", "_api_", &body(40, MIXED)].concat(),
         "postman" => ["PM", "AK-", &body(24, HEX), "-", &body(34, HEX)].concat(),
+        "postman-upper" => ["PM", "AK-", &body(24, HEX), "-", &body(34, HEX)]
+            .concat()
+            .to_uppercase(),
         other => panic!("no fake value named {other}"),
     }
 }
