@@ -2,7 +2,7 @@
 
 Every rule safe-anything checks, generated from `safe-anything --list-rules --json`. Each links to the OWASP page that explains the problem and the fix.
 
-## Code (24)
+## Code (25)
 
 | Rule | Severity | CWE | OWASP | What it means |
 | --- | --- | --- | --- | --- |
@@ -17,6 +17,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`code.sql-injection`](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html) | high | [CWE-89](https://cwe.mitre.org/data/definitions/89.html) | A03:2021 Injection | A SQL query is built from variables by string formatting, so input can change the query (SQL injection). |
 | [`code.path-traversal`](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html) | high | [CWE-22](https://cwe.mitre.org/data/definitions/22.html) | A01:2021 Broken Access Control | A file path comes straight from the request, so ../ can reach any file on the server (path traversal). |
 | [`code.ssrf`](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html) | high | [CWE-918](https://cwe.mitre.org/data/definitions/918.html) | A10:2021 Server-Side Request Forgery | The server fetches a URL taken from the request, so users can reach internal services (SSRF). |
+| [`code.open-redirect`](https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html) | medium | [CWE-601](https://cwe.mitre.org/data/definitions/601.html) | A01:2021 Broken Access Control | The redirect target is taken from the request, so a crafted link can send users to any site from your domain (open redirect). |
 | [`code.tls-verify-off`](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html) | medium | [CWE-295](https://cwe.mitre.org/data/definitions/295.html) | A02:2021 Cryptographic Failures | TLS certificate checks are turned off, so anyone on the network can read or change the traffic. |
 | [`code.weak-hash`](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) | low | [CWE-328](https://cwe.mitre.org/data/definitions/328.html) | A02:2021 Cryptographic Failures | MD5 and SHA-1 are broken for security use (collisions; too fast for passwords). |
 | [`code.weak-cipher`](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html) | medium | [CWE-327](https://cwe.mitre.org/data/definitions/327.html) | A02:2021 Cryptographic Failures | A weak cipher or ECB mode is used; ECB leaks patterns and DES/RC4 are broken. |
