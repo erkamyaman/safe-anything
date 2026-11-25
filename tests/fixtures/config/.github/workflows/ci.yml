@@ -27,3 +27,5 @@ jobs:
       - run: echo "Title ${{ github.event.workflow_run.display_title }}"
       - run: echo "Msg ${{ github.event.workflow_run.head_commit.message }}"
       - run: echo "Run ${{ github.event.workflow_run.id }} ${{ github.event.workflow_run.conclusion }}"
+      - run: echo "By ${{ github.event.workflow_run.head_commit.author.email }}"
+      - run: echo "Repo ${{ github.event.workflow_run.repository.name }}"

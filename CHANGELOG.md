@@ -3,8 +3,9 @@
 ## Unreleased
 
 - Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
-  `github.event.workflow_run.head_branch`, `.display_title` and `.head_commit.message` pasted into a `run:`
-  step are reported. Fields like `workflow_run.id` and `workflow_run.conclusion` are not.
+  `github.event.workflow_run.head_branch`, `.display_title`, `.head_commit.message` and the head commit's
+  author and committer name and email pasted into a `run:` step are reported. Fields the triggering run
+  can't set, like `workflow_run.id`, `.conclusion` or `.repository.name`, are not.
 
 ## 1.1.0 (2026-11-25)
 
