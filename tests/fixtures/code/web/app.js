@@ -29,3 +29,5 @@ jwt.verify(token, key, { algorithms: ['none'] });
 res.setHeader('Access-Control-Allow-Origin', '*');
 const token = Math.random().toString(36);
 const jitter = Math.random() * 100;
+res.redirect(req.query.next);
+res.redirect('/home');
