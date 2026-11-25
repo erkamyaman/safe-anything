@@ -329,6 +329,24 @@ pub static RULES: &[Rule] = &[
         "Allow only known hosts, block private and link-local addresses, and never pass the raw URL through."
     ),
     rule!(
+        "code.open-redirect",
+        Medium,
+        js,
+        r"\b(?:res|response|reply)\.redirect\s*\(\s*req\.(?:query|params|body)",
+        None,
+        "The redirect target is taken from the request, so a crafted link can send users to any site from your domain (open redirect).",
+        "Redirect only to a fixed path or a URL on an allow list; never pass request input straight to redirect."
+    ),
+    rule!(
+        "code.open-redirect",
+        Medium,
+        py,
+        r"\bredirect\s*\(\s*request\.(?:args|form|values|GET|POST|query_params)",
+        None,
+        "The redirect target is taken from the request, so a crafted link can send users to any site from your domain (open redirect).",
+        "Redirect only to a fixed path or a URL on an allow list; never pass request input straight to redirect."
+    ),
+    rule!(
         "code.tls-verify-off",
         Medium,
         code,
