@@ -32,6 +32,7 @@ pub fn fake(name: &str) -> String {
         "openai" => ["sk-", "proj-", &body(48, MIXED)].concat(),
         "google" => ["AI", "za", &body(35, MIXED)].concat(),
         "google-oauth" => ["GO", "CSPX-", &body(28, MIXED)].concat(),
+        "google-oauth-hyphen" => ["GO", "CSPX-", &body(27, MIXED), "-"].concat(),
         "mailgun" => ["ke", "y-", &body(32, HEX)].concat(),
         "telegram" => ["1234", "567890", ":", &body(35, MIXED)].concat(),
         "telegram-hyphen" => ["1234", "567890", ":", &body(34, MIXED), "-"].concat(),
