@@ -425,10 +425,11 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
 /// Whether an Apache `SSLProtocol` line leaves an old version on. Its words are applied in
 /// order: `all` turns every version on, `-name` turns one off, and `+name` turns it on, so
 /// `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. A plain name
-/// counts as on too; Apache lets it replace the list so far, so this errs on the strict side
-/// (`TLSv1 TLSv1.2` is reported). Any other line, such as nginx `ssl_protocols` (no signs), is
-/// kept as the pattern found it, and so is one that this line alone cannot settle: it goes on
-/// after a trailing backslash, or uses a `${VAR}`. Quotes around words are dropped, as in Apache.
+/// (or a plain `all`) replaces the set so far, as mod_ssl does, so `TLSv1 TLSv1.2` leaves only
+/// TLS 1.2 on. Any other line, such as nginx `ssl_protocols` (no signs), is kept as the pattern
+/// found it, and so is one that this line alone cannot settle: it goes on after a trailing
+/// backslash, uses a `${VAR}`, or has a word that is not a known protocol. Quotes around words
+/// are dropped, as in Apache.
 fn old_tls_on(line: &str) -> bool {
     const OLD: [&str; 4] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1"];
     let lower = line.to_ascii_lowercase();
