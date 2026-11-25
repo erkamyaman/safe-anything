@@ -19,6 +19,7 @@
   only part of an ordinary word, so `PATH`, `PYTHONPATH`, `NODE_PATH`, `DISPATCH_MODE`, `AUTHOR`,
   `MONKEY_PATCH` and `KEYCHAIN_PROFILE` are not reported. `GITHUB_PAT`, `githubPat`, `OPENAI_APIKEY`,
   `daemonKey`, `patHash` and `clientSecret` still are.
+- Agent: `agent.mcp-insecure-url` now reads a bracketed IPv6 host up to its closing `]` (only `[::1]` counts as local) and matches `http://` without regard to case.
 - Dependencies: `pubspec.lock` is read, so Dart and Flutter packages are checked against OSV.dev
   (`Pub` ecosystem). Packages from the `sdk` source, like `flutter`, are skipped.
 - Secrets: new rule `secret.gitlab-token` (critical) for GitLab personal access tokens (`glpat-` followed by 20 characters).
