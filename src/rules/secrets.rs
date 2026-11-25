@@ -248,6 +248,12 @@ pub static RULES: &[Rule] = &[
         "An npm access token is written in the file."
     ),
     secret!(
+        "secret.pulumi-token",
+        Critical,
+        r"\bpul-[a-f0-9]{40}\b",
+        "A Pulumi access token is written in the file."
+    ),
+    secret!(
         "secret.pypi-token",
         Critical,
         r"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{50,}",

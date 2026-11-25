@@ -109,6 +109,7 @@ pub fn fake(name: &str) -> String {
         "shopify-token" => ["sh", "pat_", &body(32, HEX)].concat(),
         "digitalocean-token" => ["do", "p_v1_", &body(64, HEX)].concat(),
         "twilio" => ["S", "K", &body(32, HEX)].concat(),
+        "pulumi-token" => ["pu", "l-", &body(40, HEX)].concat(),
         other => panic!("no fake value named {other}"),
     }
 }
