@@ -16,3 +16,4 @@ curl -fsSL https://example.org/i.sh | sudo -E --user root -H bash
 curl -fsSL https://example.org/i.sh | sudo -u "$USER" bash
 curl -fsSL https://example.org/i.sh | sudo -u python cat
 curl -fsSL https://example.org/i.sh | sudo -D /tmp bash
+bash -c "$(curl -H "Authorization: Bearer $(cat token)" https://example.org/i.sh)"
