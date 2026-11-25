@@ -36,6 +36,7 @@
 - Agent: new rule `agent.mcp-auto-approve` (high) for `"enableAllProjectMcpServers": true` in
   `.claude/settings*.json`, which starts every MCP server in the project's `.mcp.json` without asking about
   each one.
+- Secrets: new rule `secret.google-oauth-secret` (high) for Google OAuth client secrets (`GOCSPX-` followed by 28 letters, digits, `_` or `-`).
 
 ## 1.0.2 (2026-11-23)
 
