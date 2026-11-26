@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
+  `github.event.workflow_run.head_branch`, `.display_title`, `.head_commit.message` and the head commit's
+  author and committer name and email pasted into a `run:` step are reported. Fields the triggering run
+  can't set, like `workflow_run.id`, `.conclusion` or `.repository.name`, are not.
+- Dependencies: a lockfile over 2 MB is read again (up to 64 MB) instead of being skipped with "0 packages
+  checked". A larger one is named in the report (`lockfiles_too_large` in JSON). npm, Composer and Pipfile
+  lockfiles are also read in one pass, whatever their key order: 0.12 s instead of 4.3 s for a 3 MB
+  package-lock.json, 0.5 s for 60 MB.
+- Config: `config.weak-tls-version` reads Apache's `SSLProtocol` signs, so `all -SSLv3 -TLSv1 -TLSv1.1` is no
+  longer reported, while `all -SSLv3` (TLS 1.0 still on) and `+TLSv1.1` still are. A plain name replaces the set
+  so far, as Apache does, so `TLSv1.2 TLSv1` is reported and `TLSv1 TLSv1.2` is not. A line that names an old
+  version and goes on after a backslash, uses a `${VAR}` or has an unknown word is still reported.
+- Secrets: `secret.linear-api-key` finds Linear API keys (`lin_api_` and 40 letters and digits) and
+  `secret.postman-api-key` finds Postman API keys (`PMAK-`, 24 hex, `-`, 34 hex). Both are critical.
+- Secrets: new rule `secret.pulumi-token` (critical) for Pulumi access tokens (`pul-` followed by 40 lowercase hex characters).
+- Config and agent: `remote-script` also reports `curl ... | sudo -E bash` (sudo with flags, as in NodeSource's
+  install line) and a shell run on a downloaded script, `bash -c "$(curl ...)"` and its backtick form. `sudo tee`
+  and a `$(curl ...)` only assigned to a variable stay quiet, as does `sudo -E tee bash` (tee runs, not bash).
+  PowerShell's `iwr`, `Invoke-WebRequest`, `irm`, `Invoke-RestMethod`, `iex` and `Invoke-Expression`, and its
+  `curl` and `wget` aliases, match in any case, so `irm https://... | iex` is reported.
+
 ## 1.1.0 (2026-11-25)
 
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers

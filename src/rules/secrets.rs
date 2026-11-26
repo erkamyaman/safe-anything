@@ -248,6 +248,12 @@ pub static RULES: &[Rule] = &[
         "An npm access token is written in the file."
     ),
     secret!(
+        "secret.pulumi-token",
+        Critical,
+        r"\bpul-[a-f0-9]{40}\b",
+        "A Pulumi access token is written in the file."
+    ),
+    secret!(
         "secret.pypi-token",
         Critical,
         r"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{50,}",
@@ -318,6 +324,18 @@ pub static RULES: &[Rule] = &[
         Critical,
         r"\bSK[0-9a-f]{32}\b",
         "A Twilio API key is written in the file."
+    ),
+    secret!(
+        "secret.linear-api-key",
+        Critical,
+        r"\blin_api_[A-Za-z0-9]{40}\b",
+        "A Linear API key is written in the file."
+    ),
+    secret!(
+        "secret.postman-api-key",
+        Critical,
+        r"\bPMAK-[0-9a-fA-F]{24}-[0-9a-fA-F]{34}\b",
+        "A Postman API key is written in the file."
     ),
     secret!(
         "secret.private-key",

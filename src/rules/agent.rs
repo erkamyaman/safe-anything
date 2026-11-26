@@ -100,7 +100,7 @@ pub static RULES: &[Rule] = &[
         "agent.remote-script",
         High,
         is_agent_file,
-        r"\b(?:curl|wget)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+)?(?:sh|bash|zsh|python3?|node)\b",
+        r#"\b(?:curl|wget)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:--?(?:[ugCDhprtTU]|user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout)\s+(?:"[^"\n]*"|'[^'\n]*'|\\"[^"\n]*?\\"|[\w.$/~][\w.${}/~-]*)\s+|-[ugCDhprtTU]\S+\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|node)\b|\b(?:ba|z|da|k)?sh\s+(?:-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
         None,
         "A script is downloaded and run straight from the internet; whoever controls that URL controls this machine.",
         "Download, review and pin the script (or a checksum), or install the tool from a package manager."

@@ -175,6 +175,9 @@ pub struct Report {
     pub findings: Vec<Finding>,
     pub files_scanned: usize,
     pub packages_checked: usize,
+    /// Lockfiles too large to read (over `engine::MAX_LOCK_BYTES`), so their packages were not checked.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub lockfiles_too_large: Vec<String>,
     pub elapsed_ms: u64,
     pub dependency_check: DependencyCheck,
 }
@@ -226,6 +229,7 @@ pub fn scan(root: &Path, options: &Options) -> std::io::Result<Report> {
     let mut report = Report {
         files_scanned: scanned.files,
         packages_checked: scanned.packages.len(),
+        lockfiles_too_large: scanned.lockfiles_too_large,
         findings: scanned.findings,
         ..Report::default()
     };

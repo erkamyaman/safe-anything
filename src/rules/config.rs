@@ -54,7 +54,7 @@ pub static RULES: &[Rule] = &[
         "config.remote-script",
         Medium,
         shell_or_workflow,
-        r"\b(?:curl|wget|iwr|Invoke-WebRequest)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+)?(?:sh|bash|zsh|python3?|iex)\b",
+        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:--?(?:[ugCDhprtTU]|user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout)\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[ugCDhprtTU]\S+\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
         None,
         "A script is downloaded and piped straight into a shell, with no pinning or checksum.",
         "Download to a file, verify a pinned checksum or signature, then run it; or use a package manager."
@@ -126,7 +126,7 @@ pub static RULES: &[Rule] = &[
         "config.gha-script-injection",
         High,
         workflow,
-        r"\$\{\{\s*github\.(?:event\.(?:issue|pull_request|comment|review|review_comment|discussion|head_commit|commits|pages)[\w.\[\]*]*\.(?:title|body|message|name|label|ref|email|default_branch)|head_ref)\s*\}\}",
+        r"\$\{\{\s*github\.(?:event\.(?:issue|pull_request|comment|review|review_comment|discussion|head_commit|commits|pages)[\w.\[\]*]*\.(?:title|body|message|name|label|ref|email|default_branch)|event\.workflow_run\.(?:head_branch|display_title|head_commit\.(?:message|(?:author|committer)\.(?:name|email)))|head_ref)\s*\}\}",
         None,
         "Text an outsider controls (a PR title, issue body, branch name) is pasted into the workflow, so it can run commands.",
         "Pass it through an env: variable and use \"$VAR\" in the script."
@@ -207,7 +207,7 @@ pub static RULES: &[Rule] = &[
         "config.weak-tls-version",
         Medium,
         server_conf,
-        r"(?i)(?:ssl_protocols|SSLProtocol)[^;\n]*\b(?:SSLv[23]|TLSv1|TLSv1\.1)(?:\s|;|$)",
+        r#"(?i)(?:ssl_protocols|SSLProtocol)[^;\n]*\b(?:SSLv[23]|TLSv1|TLSv1\.1)(?:\s|;|$|["'])"#,
         None,
         "Old TLS or SSL versions are enabled; they have known attacks.",
         "Allow only TLSv1.2 and TLSv1.3."
@@ -417,13 +417,100 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
                     .is_some_and(is_public_access_block)
             })
         }
+        "config.weak-tls-version" => old_tls_on(text.line(f.line)),
         _ => true,
     }
+}
+
+/// Whether an Apache `SSLProtocol` line leaves an old version on. Its words are applied in
+/// order: `all` turns every version on, `-name` turns one off, and `+name` turns it on, so
+/// `all -SSLv3 -TLSv1 -TLSv1.1` is safe while `all -SSLv3` still allows TLS 1.0. A plain name
+/// (or a plain `all`) replaces the set so far, as mod_ssl does, so `TLSv1 TLSv1.2` leaves only
+/// TLS 1.2 on. Any other line, such as nginx `ssl_protocols` (no signs), is kept as the pattern
+/// found it, and so is one that this line alone cannot settle: it goes on after a trailing
+/// backslash, uses a `${VAR}`, or has a word that is not a known protocol. Quotes around words
+/// are dropped, as in Apache.
+fn old_tls_on(line: &str) -> bool {
+    const OLD: [&str; 4] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1"];
+    let lower = line.to_ascii_lowercase();
+    let mut words = lower.split_whitespace();
+    if words.next() != Some("sslprotocol") {
+        return true;
+    }
+    if lower.trim_end().ends_with('\\') || lower.contains("${") {
+        return true;
+    }
+    // Only the known names are tracked, so a long line costs one pass; an unknown word keeps the finding.
+    const KNOWN: [&str; 6] = ["sslv2", "sslv3", "tlsv1", "tlsv1.1", "tlsv1.2", "tlsv1.3"];
+    let mut on: Vec<&str> = Vec::new();
+    for word in words {
+        let word = word.trim_matches(|c| c == '"' || c == '\'');
+        if word.contains(['"', '\'']) {
+            return true;
+        }
+        let (add, name) = match word.strip_prefix('-') {
+            Some(name) => (false, name),
+            None => (true, word.strip_prefix('+').unwrap_or(word)),
+        };
+        if name != "all" && !KNOWN.contains(&name) {
+            return true;
+        }
+        // A plain name (no sign) replaces the set so far, as mod_ssl does.
+        if !word.starts_with(['+', '-']) {
+            on.clear();
+        }
+        let names = if name == "all" {
+            &OLD[1..]
+        } else {
+            std::slice::from_ref(&name)
+        };
+        for &n in names {
+            on.retain(|&o| o != n);
+            if add {
+                on.push(n);
+            }
+        }
+    }
+    on.iter().any(|n| OLD.contains(n))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sslprotocol_minus_turns_a_version_off() {
+        for (line, on) in [
+            ("SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1", false),
+            ("  sslprotocol ALL -sslv3 -tlsv1 -tlsv1.1", false),
+            ("SSLProtocol -all +TLSv1.2 +TLSv1.3", false),
+            ("SSLProtocol all -SSLv3", true),
+            ("SSLProtocol all -SSLv3 -TLSv1", true),
+            ("SSLProtocol -all +TLSv1.1 +TLSv1.2", true),
+            // A plain name replaces the set so far, as mod_ssl does: only TLSv1.2 is on.
+            ("SSLProtocol TLSv1 TLSv1.2", false),
+            ("SSLProtocol TLSv1.2 TLSv1", true),
+            ("SSLProtocol TLSv1.2 +TLSv1.1", true),
+            // An unknown word cannot be weighed, so the finding stays.
+            ("SSLProtocol -all +TLSv1.2 bogus", true),
+            ("SSLProtocol -TLSv1 all", true),
+            // Apache removes argument quotes before reading the words.
+            ("SSLProtocol \"all\" \"-SSLv3\" '-TLSv1' -TLSv1.1", false),
+            ("SSLProtocol \"all -SSLv3\"", true),
+            // Quotes that run two words together cannot be split safely here.
+            ("SSLProtocol \"-all\"\"+TLSv1.2\"", true),
+            // A line that goes on after a backslash, or a ${VAR}, is not read in full here.
+            ("SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1 \\", true),
+            ("SSLProtocol ${LEGACY} -SSLv3 -TLSv1 -TLSv1.1", true),
+            ("ssl_protocols TLSv1 TLSv1.2;", true),
+            (
+                "ssl_protocols TLSv1 TLSv1.2; # like SSLProtocol in Apache",
+                true,
+            ),
+        ] {
+            assert_eq!(old_tls_on(line), on, "{line}");
+        }
+    }
 
     /// Whether the first `key = false` in `src` is reported: it matches and sits in an S3
     /// public access block.

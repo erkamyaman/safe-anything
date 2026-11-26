@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::rules::FileInfo;
+use crate::rules::{FileInfo, Text};
 use crate::{Family, Finding, Severity};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -38,30 +38,99 @@ fn pkg(eco: &str, name: &str, version: &str, file: &FileInfo, line: usize) -> Pa
     }
 }
 
-pub fn parse_lockfile(file: &FileInfo, text: &str) -> Vec<Package> {
-    match file.name.as_str() {
-        "package-lock.json" | "npm-shrinkwrap.json" => npm_lock(file, text),
-        "yarn.lock" => yarn_lock(file, text),
-        "pnpm-lock.yaml" => pnpm_lock(file, text),
-        "cargo.lock" => toml_packages(file, text, "crates.io", true),
-        "poetry.lock" | "uv.lock" | "pdm.lock" => toml_packages(file, text, "PyPI", false),
-        "go.mod" => go_mod(file, text),
-        "gemfile.lock" => gemfile_lock(file, text),
-        "composer.lock" => composer_lock(file, text),
-        "pipfile.lock" => pipfile_lock(file, text),
-        "pubspec.lock" => pubspec_lock(file, text),
-        n if n.starts_with("requirements") && n.ends_with(".txt") => requirements(file, text),
-        _ => Vec::new(),
+/// A JSON object's entries in the order the file lists them. serde_json's own map
+/// iterates in byte order, so looking each key up from it would search back from the
+/// top of the file whenever the two orders differ.
+struct Ordered(Vec<(String, Value)>);
+
+/// Reads an object member as `Ordered`. Any other value (null, an array, a string, ...)
+/// is read past and counts as absent, as `Value::as_object` did.
+fn ordered<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Ordered>, D::Error> {
+    use serde::de::{IgnoredAny, MapAccess, SeqAccess, Visitor};
+    struct Entries;
+    impl<'de> Visitor<'de> for Entries {
+        type Value = Option<Ordered>;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("any JSON value")
+        }
+        fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+            let mut out = Vec::with_capacity(map.size_hint().unwrap_or(0));
+            while let Some(entry) = map.next_entry()? {
+                out.push(entry);
+            }
+            Ok(Some(Ordered(out)))
+        }
+        fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            while seq.next_element::<IgnoredAny>()?.is_some() {}
+            Ok(None)
+        }
+        fn visit_unit<E>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_bool<E>(self, _: bool) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_i64<E>(self, _: i64) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_u64<E>(self, _: u64) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_f64<E>(self, _: f64) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_str<E>(self, _: &str) -> Result<Self::Value, E> {
+            Ok(None)
+        }
     }
+    d.deserialize_any(Entries)
+}
+
+type Parser = fn(&FileInfo, &str) -> Vec<Package>;
+
+/// The parser for a lockfile name, or `None` when the file is not one.
+fn parser(name: &str) -> Option<Parser> {
+    Some(match name {
+        "package-lock.json" | "npm-shrinkwrap.json" => npm_lock,
+        "yarn.lock" => yarn_lock,
+        "pnpm-lock.yaml" => pnpm_lock,
+        "cargo.lock" => |f, t| toml_packages(f, t, "crates.io", true),
+        "poetry.lock" | "uv.lock" | "pdm.lock" => |f, t| toml_packages(f, t, "PyPI", false),
+        "go.mod" => go_mod,
+        "gemfile.lock" => gemfile_lock,
+        "composer.lock" => composer_lock,
+        "pipfile.lock" => pipfile_lock,
+        "pubspec.lock" => pubspec_lock,
+        n if n.starts_with("requirements") && n.ends_with(".txt") => requirements,
+        _ => return None,
+    })
+}
+
+/// True for the files `parse_lockfile` reads packages from.
+pub fn is_lockfile(file: &FileInfo) -> bool {
+    parser(&file.name).is_some()
+}
+
+pub fn parse_lockfile(file: &FileInfo, text: &str) -> Vec<Package> {
+    parser(&file.name).map_or_else(Vec::new, |parse| parse(file, text))
+}
+
+#[derive(Deserialize)]
+struct NpmLock {
+    #[serde(default, deserialize_with = "ordered")]
+    packages: Option<Ordered>,
+    #[serde(default, deserialize_with = "ordered")]
+    dependencies: Option<Ordered>,
 }
 
 fn npm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
-    let Ok(json) = serde_json::from_str::<Value>(text) else {
+    let Ok(json) = serde_json::from_str::<NpmLock>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
     let mut cursor = 0;
-    if let Some(packages) = json.get("packages").and_then(Value::as_object) {
+    if let Some(Ordered(packages)) = &json.packages {
         for (key, p) in packages {
             let Some(name) = key.rsplit_once("node_modules/").map(|(_, n)| n) else {
                 continue;
@@ -73,14 +142,14 @@ fn npm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                 continue;
             };
             let at = find_from(text, &mut cursor, &format!("\"{key}\""));
-            let line = line_of(text, find_after(text, at, "\"version\""));
+            let line = lines.line_of(find_after(text, at, "\"version\""));
             out.push(pkg("npm", name, version, file, line));
         }
-    } else if let Some(deps) = json.get("dependencies").and_then(Value::as_object) {
+    } else if let Some(Ordered(deps)) = &json.dependencies {
         for (name, p) in deps {
             if let Some(version) = p.get("version").and_then(Value::as_str) {
                 let at = find_from(text, &mut cursor, &format!("\"{name}\""));
-                out.push(pkg("npm", name, version, file, line_of(text, at)));
+                out.push(pkg("npm", name, version, file, lines.line_of(at)));
             }
         }
     }
@@ -251,6 +320,7 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     let Ok(json) = serde_json::from_str::<Value>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
     let mut cursor = 0;
     for key in ["packages", "packages-dev"] {
@@ -270,7 +340,7 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                     n,
                     v,
                     file,
-                    line_of(text, find_after(text, at, "\"version\"")),
+                    lines.line_of(find_after(text, at, "\"version\"")),
                 ));
             }
         }
@@ -278,13 +348,22 @@ fn composer_lock(file: &FileInfo, text: &str) -> Vec<Package> {
     out
 }
 
+#[derive(Deserialize)]
+struct PipfileLock {
+    #[serde(default, deserialize_with = "ordered")]
+    default: Option<Ordered>,
+    #[serde(default, deserialize_with = "ordered")]
+    develop: Option<Ordered>,
+}
+
 fn pipfile_lock(file: &FileInfo, text: &str) -> Vec<Package> {
-    let Ok(json) = serde_json::from_str::<Value>(text) else {
+    let Ok(json) = serde_json::from_str::<PipfileLock>(text) else {
         return Vec::new();
     };
+    let lines = Text::new(text);
     let mut out = Vec::new();
-    for key in ["default", "develop"] {
-        let Some(map) = json.get(key).and_then(Value::as_object) else {
+    for (key, section) in [("default", &json.default), ("develop", &json.develop)] {
+        let Some(Ordered(map)) = section else {
             continue;
         };
         let mut cursor = text.find(&format!("\"{key}\"")).unwrap_or(0);
@@ -300,7 +379,7 @@ fn pipfile_lock(file: &FileInfo, text: &str) -> Vec<Package> {
                     n,
                     v,
                     file,
-                    line_of(text, find_after(text, at, "\"version\"")),
+                    lines.line_of(find_after(text, at, "\"version\"")),
                 ));
             }
         }
@@ -371,10 +450,6 @@ fn find_from(text: &str, cursor: &mut usize, needle: &str) -> usize {
 
 fn find_after(text: &str, at: usize, needle: &str) -> usize {
     text[at..].find(needle).map(|i| at + i).unwrap_or(at)
-}
-
-fn line_of(text: &str, offset: usize) -> usize {
-    text[..offset].matches('\n').count() + 1
 }
 
 pub fn findings(packages: &[Package], found: HashMap<usize, Vec<Advisory>>) -> Vec<Finding> {
@@ -587,5 +662,42 @@ fn advisory(id: &str, d: Option<&Value>, name: &str, current: &str) -> Advisory 
             .collect(),
         severity: sev,
         fixed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn npm(text: &str) -> Vec<(String, usize)> {
+        parse_lockfile(&FileInfo::new("package-lock.json"), text)
+            .into_iter()
+            .map(|p| (p.name, p.line))
+            .collect()
+    }
+
+    #[test]
+    fn npm_packages_that_are_not_an_object_fall_back_to_dependencies() {
+        for packages in ["null", "[]", "\"x\"", "[1, {\"b\": [2, null]}]"] {
+            let text = format!(
+                "{{\"packages\": {packages},
+\"dependencies\": {{\"left-pad\": {{\"version\": \"1.3.0\"}}}}}}"
+            );
+            assert_eq!(
+                npm(&text),
+                [("left-pad".to_string(), 2)],
+                "packages: {packages}"
+            );
+        }
+    }
+
+    #[test]
+    fn npm_keys_out_of_byte_order_keep_their_lines() {
+        let text = "{\"packages\": {
+\"node_modules/b\": {
+\"version\": \"1.0.0\"},
+\"node_modules/a\": {
+\"version\": \"2.0.0\"}}}";
+        assert_eq!(npm(text), [("b".to_string(), 3), ("a".to_string(), 5)]);
     }
 }
