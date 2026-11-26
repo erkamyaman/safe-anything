@@ -210,7 +210,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.slack-token",
         High,
-        r"\bxox[baprs]-[A-Za-z0-9-]{10,}",
+        r"\b(?:xox[baprs]-[A-Za-z0-9-]{10,}|xapp-\d-[A-Z0-9]+-\d+-[a-z0-9]+)",
         "A Slack token is written in the file."
     ),
     Rule {
