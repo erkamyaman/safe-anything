@@ -20,7 +20,8 @@
 - Config and agent: `remote-script` also reports `curl ... | sudo -E bash` (sudo with flags, as in NodeSource's
   install line) and a shell run on a downloaded script, `bash -c "$(curl ...)"` and its backtick form. `sudo tee`
   and a `$(curl ...)` only assigned to a variable stay quiet, as does `sudo -E tee bash` (tee runs, not bash).
-  PowerShell's `iwr`, `Invoke-WebRequest`, `iex` and `Invoke-Expression` match in any case.
+  PowerShell's `iwr`, `Invoke-WebRequest`, `irm`, `Invoke-RestMethod`, `iex` and `Invoke-Expression`, and its
+  `curl` and `wget` aliases, match in any case, so `irm https://... | iex` is reported.
 
 ## 1.1.0 (2026-11-25)
 
