@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: new rule `secret.heroku-key` (critical) for Heroku API keys (`HRKU-AA` followed by 58
+  letters, digits, `_` or `-`).
 - Secrets: when a line holds more than one secret or more than one finding, all secrets on that
   line are now masked in every finding on it (two tokens of one kind, tokens of different kinds, a
   token beside a `NEXT_PUBLIC_` or `VITE_` secret, another rule's finding on the same line such as

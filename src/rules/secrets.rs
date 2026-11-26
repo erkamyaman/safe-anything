@@ -371,6 +371,12 @@ pub static RULES: &[Rule] = &[
         "A DigitalOcean token is written in the file."
     ),
     secret!(
+        "secret.heroku-key",
+        Critical,
+        r"\b(HRKU-AA[0-9A-Za-z_\-]{58})(?:[^0-9A-Za-z_\-]|\z)",
+        "A Heroku API key is written in the file."
+    ),
+    secret!(
         "secret.databricks-token",
         Critical,
         r"\bdapi[0-9a-f]{32}(?:-\d)?\b",
