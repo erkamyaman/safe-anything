@@ -35,6 +35,15 @@ pub fn fake(name: &str) -> String {
             &body(24, MIXED),
         ]
         .concat(),
+        "slack-app" => [
+            "xa",
+            "pp-1-",
+            "A0",
+            &body(9, UPPER),
+            "-4815162342123-",
+            &body(64, HEX),
+        ]
+        .concat(),
         "slack-webhook" => [
             "https://hooks.",
             "slack.com/services/",
