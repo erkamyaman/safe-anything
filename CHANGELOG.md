@@ -7,6 +7,9 @@
   value flag in one word (`curl ... | sudo -Eu root bash`, `sudo -HEu "$USER" bash`,
   `sudo -ED"/tmp/build dir" sh`). `curl ... | sudo -uroot; bash` is no longer reported, since that
   `bash` is a separate command.
+- Config: `config.gha-script-injection` skips a commented-out workflow line like
+  `# - run: echo "${{ github.event.pull_request.title }}"`. A `#` line inside a `run: |` or `script: |`
+  block is still reported, since the expression is filled in before the shell sees the comment.
 - Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
   `github.event.workflow_run.head_branch`, `.display_title`, `.head_commit.message` and the head commit's
   author and committer name and email pasted into a `run:` step are reported. Fields the triggering run
