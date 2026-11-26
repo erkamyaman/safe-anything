@@ -373,7 +373,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.heroku-key",
         Critical,
-        r"\b(HRKU-AA[0-9A-Za-z_\-]{58})(?:[^0-9A-Za-z_\-]|\z)",
+        r"(HRKU-AA[0-9A-Za-z_\-]{58})(?:[^0-9A-Za-z_\-]|\z)",
         "A Heroku API key is written in the file."
     ),
     secret!(
