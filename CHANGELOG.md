@@ -22,6 +22,8 @@
   and a `$(curl ...)` only assigned to a variable stay quiet, as does `sudo -E tee bash` (tee runs, not bash).
   PowerShell's `iwr`, `Invoke-WebRequest`, `irm`, `Invoke-RestMethod`, `iex` and `Invoke-Expression`, and its
   `curl` and `wget` aliases, match in any case, so `irm https://... | iex` is reported.
+- Build: the pinned `cookie` (0.18.3) and `time` (0.3.47) crates are updated for RUSTSEC-2026-0594 and
+  RUSTSEC-2026-0009. Neither was reachable from a scan.
 
 ## 1.1.0 (2026-11-25)
 
