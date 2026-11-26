@@ -1,6 +1,6 @@
 {
   "name": "safe-anything",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Find the holes before someone else does: scan code, secrets, mobile and cloud config, dependencies and the AI agent setup around them, from Claude Code over MCP.",
   "author": {
     "name": "Erkam Yaman",
