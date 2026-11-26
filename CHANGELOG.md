@@ -4,6 +4,11 @@
 
 - Secrets: `secret.slack-token` also finds Slack app-level tokens (`xapp-1-A0123...-1234567890123-` and
   lowercase letters and digits), which let a Socket Mode app connect as the app. A bare `xapp-` stays quiet.
+- Secrets: `secret.env-file` and `secret.env-example-value` stay on one line instead of matching
+  across line breaks, so an empty assignment like `API_KEY=` followed by another variable is no
+  longer reported, a blank line above a placeholder like `your-placeholder-key-here` no longer
+  breaks placeholder skipping, and a real secret after a blank line is reported on its own line
+  instead of the blank line above it.
 - Config and agent files: `remote-script` also reports a shell option with a value before `-c`
   (`bash -o pipefail -c "$(curl ...)"`, `sh -e -o nounset -c ...`) and sudo flags combined with a
   value flag in one word (`curl ... | sudo -Eu root bash`, `sudo -HEu "$USER" bash`,

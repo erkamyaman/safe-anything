@@ -95,9 +95,9 @@ fn env_example(f: &FileInfo) -> bool {
     is_env(&f.name) && is_env_template(&f.name)
 }
 
-const ENV_SECRET_LINE: &str = r#"(?m)^\s*(?:export\s+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*\s*=\s*["']?([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})["']?\s*$"#;
+const ENV_SECRET_LINE: &str = r#"(?m)^[ \t]*(?:export[ \t]+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*[ \t]*=[ \t]*["']?([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})["']?[ \t]*\r?$"#;
 
-const ENV_PLACEHOLDER: &str = r"^\s*(?:export\s+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=\s*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))|=\s*[\x22']?\*+[\x22']?\s*$|=\s*[\x22']?\$";
+const ENV_PLACEHOLDER: &str = r"^[ \t]*(?:export[ \t]+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=[ \t]*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))|=[ \t]*[\x22']?\*+[\x22']?[ \t]*$|=[ \t]*[\x22']?\$";
 
 // A name with `aws` and `secret` in it, then `=` or `:` and a 40-character value. `aws` and
 // `secret` each start a word: at the start of the line, after a character that is not a letter
@@ -429,6 +429,53 @@ pub static RULES: &[Rule] = &[
 #[cfg(test)]
 mod tests {
     use super::plausible_aws_secret;
+    use crate::rules::{FileInfo, check};
+
+    #[test]
+    fn env_secret_line_does_not_cross_newlines() {
+        let s = ["Fake0000", "Value0000", "Q7mZ"].concat();
+        for (name, src) in [
+            (".env.example", "API_KEY=\nNEXT_VAR=some_regular_value\n"),
+            (".env", "API_SECRET=\nAPP_ENVIRONMENT=production\n"),
+            (".env.example", "API_KEY=\n\nNEXT_VAR=some_regular_value\n"),
+            (".env.example", "API_KEY=   \nNEXT_VAR=some_regular_value\n"),
+            (
+                ".env.example",
+                "API_KEY=\r\nNEXT_VAR=some_regular_value\r\n",
+            ),
+            (".env", "API_SECRET=\r\nAPP_ENVIRONMENT=production\r\n"),
+            (".env.example", "\nAPI_KEY=your-placeholder-key-here\n"),
+            (".env.example", "\r\nAPI_KEY=your-placeholder-key-here\r\n"),
+            (
+                ".env.example",
+                "export\nAPI_KEY=your-placeholder-key-here\n",
+            ),
+        ] {
+            let found = check(&FileInfo::new(name), src, false);
+            assert!(found.is_empty(), "{name} {src:?} => {found:#?}");
+        }
+        let (ex, ef) = ("secret.env-example-value", "secret.env-file");
+        for (name, rule, src, line) in [
+            (".env.example", ex, format!("\nAPI_KEY={s}\n"), 2),
+            (".env.example", ex, format!("\r\nAPI_KEY={s}\r\n"), 2),
+            (".env", ef, format!("\n  export API_KEY = {s}\n"), 2),
+            (
+                ".env",
+                ef,
+                format!("\n  export SECRET_KEY = \"{s}\"  \r\n"),
+                2,
+            ),
+            (".env", ef, format!("API_KEY={s}  \r\n"), 1),
+        ] {
+            let found: Vec<_> = check(&FileInfo::new(name), &src, false)
+                .into_iter()
+                .filter(|f| f.rule == rule)
+                .collect();
+            assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
+            assert_eq!(found[0].line, line);
+            assert!(found[0].snippet.contains('=') && !found[0].snippet.contains(&s));
+        }
+    }
 
     #[test]
     fn aws_secret_value_check() {
