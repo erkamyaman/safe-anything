@@ -9,6 +9,7 @@ use super::{FileInfo, Meta, Rule, Text, finding};
 use crate::{Family, Finding, Severity};
 
 pub const NAME_ONLY: &[&str] = &["secret.public-env-secret"];
+pub const ENV_VALUE_RULES: &[&str] = &["secret.env-file", "secret.env-example-value"];
 
 pub const ENV_NOT_IGNORED: (&str, Severity, &str, &str) = (
     "secret.env-not-ignored",
@@ -58,7 +59,6 @@ pub fn env_not_ignored(root: &Path, env_files: &[String]) -> Option<Finding> {
             severity,
             message,
             fix,
-            secret: None,
         },
     ))
 }
@@ -95,9 +95,54 @@ fn env_example(f: &FileInfo) -> bool {
     is_env(&f.name) && is_env_template(&f.name)
 }
 
-const ENV_SECRET_LINE: &str = r#"(?m)^[ \t]*(?:export[ \t]+)?[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*[ \t]*=[ \t]*["']?([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})["']?[ \t]*\r?$"#;
+const ENV_SECRET_LINE: &str = concat!(
+    r"(?m)^[ \t]*(?:export[ \t]+)?",
+    r"[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*",
+    r"[ \t]*=[ \t]*(?:",
+    r#""([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})"[ \t]*(?:#[^\r\n]*)?"#,
+    r#"|'([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})'[ \t]*(?:#[^\r\n]*)?"#,
+    r#"|([A-Za-z0-9+/_.=!@$%^&*\-][A-Za-z0-9+/_.=!@#$%^&*\-]{15,})(?:[ \t]+#[^\r\n]*)?[ \t]*"#,
+    r")\r?$",
+);
 
-const ENV_PLACEHOLDER: &str = r"^[ \t]*(?:export[ \t]+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_|(?i)=[ \t]*[\x22']?(?:\S*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+))|=[ \t]*[\x22']?\*+[\x22']?[ \t]*$|=[ \t]*[\x22']?\$";
+const ENV_PLACEHOLDER: &str = concat!(
+    r"^[ \t]*(?:export[ \t]+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_",
+    r"|^[ \t]*(?:export[ \t]+)?[A-Za-z0-9_]+[ \t]*=[ \t]*(?:",
+    r#"(?i:["']?(?:[^ \t"']*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+)))"#,
+    r#"|"\*+"[ \t]*(?:#.*)?$"#,
+    r#"|'\*+'[ \t]*(?:#.*)?$"#,
+    r#"|\*+(?:[ \t]+#.*)?[ \t]*$"#,
+    r#"|["']?\$"#,
+    r")",
+);
+
+/// Drop a trailing `# ...` comment from an env assignment so it stays out of
+/// the finding snippet. A `#` inside quotes, or inside an unquoted value with
+/// no whitespace before it, is part of the value and stays.
+pub fn strip_env_comment(line: &str) -> &str {
+    let Some(eq) = line.find('=') else {
+        return line;
+    };
+    let after_eq = &line[eq + 1..];
+    let val_start = eq + 1 + (after_eq.len() - after_eq.trim_start_matches([' ', '\t']).len());
+    let rest = &line[val_start..];
+    if let Some(quote @ ('"' | '\'')) = rest.chars().next() {
+        if let Some(close) = rest[1..].find(quote) {
+            return &line[..val_start + 1 + close + 1];
+        }
+        return line;
+    }
+    if rest.starts_with('#') {
+        return line[..val_start].trim_end_matches([' ', '\t']);
+    }
+    let bytes = rest.as_bytes();
+    for i in 1..bytes.len() {
+        if bytes[i] == b'#' && matches!(bytes[i - 1], b' ' | b'\t') {
+            return line[..val_start + i].trim_end_matches([' ', '\t']);
+        }
+    }
+    line.trim_end_matches([' ', '\t'])
+}
 
 // A name with `aws` and `secret` in it, then `=` or `:` and a 40-character value. `aws` and
 // `secret` each start a word: at the start of the line, after a character that is not a letter
@@ -326,6 +371,12 @@ pub static RULES: &[Rule] = &[
         "A DigitalOcean token is written in the file."
     ),
     secret!(
+        "secret.databricks-token",
+        Critical,
+        r"\bdapi[0-9a-f]{32}(?:-\d)?\b",
+        "A Databricks personal access token is written in the file."
+    ),
+    secret!(
         "secret.twilio-api-key",
         Critical,
         r"\bSK[0-9a-f]{32}\b",
@@ -488,6 +539,134 @@ mod tests {
             assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
             assert_eq!(found[0].line, line);
             assert!(found[0].snippet.contains('=') && !found[0].snippet.contains(&s));
+        }
+    }
+
+    #[test]
+    fn env_secret_line_inline_comments() {
+        let s = ["Fake0000", "Value0000", "Q7mZ"].concat();
+        let with_hash = ["abc#def", "1234567890", "Q7mZ"].concat();
+        let leading_hash = ["#abc1234", "567890defg", "Q7mZ"].concat();
+        for (name, src) in [
+            (
+                ".env.example",
+                "API_KEY=your-key-here # set me\n".to_string(),
+            ),
+            (
+                ".env.example",
+                "API_KEY=your-api-key-here # set me\n".to_string(),
+            ),
+            (
+                ".env.example",
+                "PASSWORD=**************** # masked\n".to_string(),
+            ),
+            (
+                ".env.example",
+                "PASSWORD=\"****************\" # masked\n".to_string(),
+            ),
+            (".env", "PASSWORD='****************'#masked\n".to_string()),
+            (
+                ".env",
+                "API_KEY=$PROD_API_KEY_VALUE # from env\n".to_string(),
+            ),
+            (
+                ".env.example",
+                "API_KEY=#comment_longer_than_16_chars\n".to_string(),
+            ),
+            (
+                ".env.example",
+                "API_KEY= #comment_longer_than_16_chars\n".to_string(),
+            ),
+            (
+                ".env",
+                "API_KEY=short # very_long_comment_over_16_chars\n".to_string(),
+            ),
+            (".env", format!("SECRET_TOKEN=\"{s}' # mismatched\n")),
+            (".env", format!("SECRET_TOKEN=\"{s} # unclosed\n")),
+            (".env", format!("API_KEY={s} not a comment\n")),
+            (".env", format!("# API_KEY={s} # commented out\n")),
+        ] {
+            let found = check(&FileInfo::new(name), &src, false);
+            assert!(found.is_empty(), "{name} {src:?} => {found:#?}");
+        }
+
+        let (ex, ef) = ("secret.env-example-value", "secret.env-file");
+        for (name, rule, src, want_snippet) in [
+            (
+                ".env.example",
+                ex,
+                format!("API_KEY={s} # prod key\n"),
+                "API_KEY=Fake****",
+            ),
+            (
+                ".env.example",
+                ex,
+                format!("SECRET_TOKEN=\"{s}\" # rotated monthly\n"),
+                "SECRET_TOKEN=\"Fake****\"",
+            ),
+            (
+                ".env",
+                ef,
+                format!("SECRET_TOKEN='{s}'#note\n"),
+                "SECRET_TOKEN='Fake****'",
+            ),
+            (
+                ".env",
+                ef,
+                format!("API_KEY={with_hash}\n"),
+                "API_KEY=abc#****",
+            ),
+            (
+                ".env.example",
+                ex,
+                format!("API_KEY={with_hash} # prod key\n"),
+                "API_KEY=abc#****",
+            ),
+            (
+                ".env",
+                ef,
+                format!("SECRET_TOKEN=\"{leading_hash}\" # note\n"),
+                "SECRET_TOKEN=\"#abc****\"",
+            ),
+            (
+                ".env",
+                ef,
+                format!("API_KEY={s}\t# tab comment\r\n"),
+                "API_KEY=Fake****",
+            ),
+            (
+                ".env.example",
+                ex,
+                format!("API_KEY={s} # replace with your own key\n"),
+                "API_KEY=Fake****",
+            ),
+            (
+                ".env.example",
+                ex,
+                format!("API_KEY={s} # e.g. API_KEY=your-key-here\n"),
+                "API_KEY=Fake****",
+            ),
+            (
+                ".env",
+                ef,
+                format!("SECRET_TOKEN=\"{s}\"#your-token\n"),
+                "SECRET_TOKEN=\"Fake****\"",
+            ),
+            (
+                ".env",
+                ef,
+                format!("API_KEY={s} # masked=****************\n"),
+                "API_KEY=Fake****",
+            ),
+        ] {
+            let found: Vec<_> = check(&FileInfo::new(name), &src, false)
+                .into_iter()
+                .filter(|f| f.rule == rule)
+                .collect();
+            assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
+            assert_eq!(found[0].line, 1);
+            assert_eq!(found[0].snippet, want_snippet, "{name} {src:?}");
+            assert!(!found[0].snippet.contains(&s));
         }
     }
 

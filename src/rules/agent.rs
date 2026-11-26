@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use serde_json::Value;
@@ -172,7 +173,15 @@ const UNPINNED_FIX: &str =
 const PLAINTEXT_FIX: &str = "Reference an environment variable (\"${VAR}\") and keep the value out of files that get shared or committed.";
 const INSECURE_URL_FIX: &str = "Use https:// for every MCP server that is not on this machine.";
 
-pub fn structured(file: &FileInfo, text: &Text) -> Vec<Finding> {
+/// Where a plaintext MCP secret sits in the source so `rules::check` can mask both the raw JSON
+/// string (including escapes like `\/`, `\uXXXX`, `\"` or split lines) and any plain copy of the
+/// decoded value on the finding's line.
+pub struct AgentSecret {
+    pub span: Option<(usize, usize)>,
+    pub literal: String,
+}
+
+pub fn structured(file: &FileInfo, text: &Text) -> Vec<(Finding, Option<AgentSecret>)> {
     if !is_mcp_config(file) {
         return Vec::new();
     }
@@ -204,7 +213,12 @@ pub fn structured(file: &FileInfo, text: &Text) -> Vec<Finding> {
     out
 }
 
-fn check_claude_permissions(file: &FileInfo, text: &Text, json: &Value, out: &mut Vec<Finding>) {
+fn check_claude_permissions(
+    file: &FileInfo,
+    text: &Text,
+    json: &Value,
+    out: &mut Vec<(Finding, Option<AgentSecret>)>,
+) {
     let Some(allow) = json
         .get("permissions")
         .and_then(|p| p.get("allow"))
@@ -225,18 +239,20 @@ fn check_claude_permissions(file: &FileInfo, text: &Text, json: &Value, out: &mu
                 }
                 None => cursor,
             };
-            out.push(finding(
-                file,
-                text,
-                text.line_of(at),
-                Meta {
-                    id: "agent.unrestricted-shell",
-                    family: Family::Agent,
-                    severity: Severity::High,
-                    message: "Every shell command is pre-approved, so the agent can run anything without asking.",
-                    fix: SHELL_FIX,
-                    secret: None,
-                },
+            out.push((
+                finding(
+                    file,
+                    text,
+                    text.line_of(at),
+                    Meta {
+                        id: "agent.unrestricted-shell",
+                        family: Family::Agent,
+                        severity: Severity::High,
+                        message: "Every shell command is pre-approved, so the agent can run anything without asking.",
+                        fix: SHELL_FIX,
+                    },
+                ),
+                None,
             ));
         }
     }
@@ -261,7 +277,7 @@ fn check_server(
     text: &Text,
     start: usize,
     server: &Value,
-    out: &mut Vec<Finding>,
+    out: &mut Vec<(Finding, Option<AgentSecret>)>,
 ) {
     let mut argv: Vec<String> = Vec::new();
     match server.get("command") {
@@ -274,18 +290,20 @@ fn check_server(
     }
     if let Some(spec) = unpinned(&argv) {
         let line = line_after(text, start, &format!("\"{spec}\""));
-        out.push(finding(
-            file,
-            text,
-            line,
-            Meta {
-                id: "agent.mcp-unpinned",
-                family: Family::Agent,
-                severity: Severity::Medium,
-                message: &format!("The MCP server runs `{spec}` without a pinned version, so every start installs whatever was published last."),
-                fix: UNPINNED_FIX,
-                secret: None,
-            },
+        out.push((
+            finding(
+                file,
+                text,
+                line,
+                Meta {
+                    id: "agent.mcp-unpinned",
+                    family: Family::Agent,
+                    severity: Severity::Medium,
+                    message: &format!("The MCP server runs `{spec}` without a pinned version, so every start installs whatever was published last."),
+                    fix: UNPINNED_FIX,
+                },
+            ),
+            None,
         ));
     }
     // Local servers get credentials in `env`; remote ones in `headers` (`http_headers` is Codex's
@@ -310,10 +328,24 @@ fn check_server(
             let Some(v) = v.as_str() else { continue };
             // `Authorization` and `Proxy-Authorization` are credential words in `secret_like_key`.
             if secret_like_key(k) && !references_variable(v) {
-                let line = field_keys.get(k.as_str()).map_or_else(
+                let key_at = field_keys.get(k.as_str()).copied();
+                let line = key_at.map_or_else(
                     || line_after(text, start, &format!("\"{k}\"")),
-                    |&at| text.line_of(at),
+                    |at| text.line_of(at),
                 );
+                // Verify the located source string decodes to the same value `serde_json` kept.
+                let span = key_at
+                    .and_then(|at| value_string(text.src, at))
+                    .filter(|&(s, e)| {
+                        serde_json::from_str::<String>(&text.src[s - 1..=e])
+                            .ok()
+                            .as_deref()
+                            == Some(v)
+                    });
+                let secret = AgentSecret {
+                    span,
+                    literal: v.to_string(),
+                };
                 let (message, fix) = if header {
                     (
                         format!(
@@ -327,18 +359,20 @@ fn check_server(
                         PLAINTEXT_FIX,
                     )
                 };
-                out.push(finding(
-                    file,
-                    text,
-                    line,
-                    Meta {
-                        id: "agent.mcp-plaintext-secret",
-                        family: Family::Agent,
-                        severity: Severity::High,
-                        message: &message,
-                        fix,
-                        secret: Some(v),
-                    },
+                out.push((
+                    finding(
+                        file,
+                        text,
+                        line,
+                        Meta {
+                            id: "agent.mcp-plaintext-secret",
+                            family: Family::Agent,
+                            severity: Severity::High,
+                            message: &message,
+                            fix,
+                        },
+                    ),
+                    Some(secret),
                 ));
             }
         }
@@ -358,19 +392,21 @@ fn check_server(
         };
         if !matches!(host, "localhost" | "127.0.0.1" | "[::1]") {
             let line = line_after(text, start, url);
-            out.push(finding(
-            file,
-            text,
-            line,
-            Meta {
-                id: "agent.mcp-insecure-url",
-                family: Family::Agent,
-                severity: Severity::High,
-                message: "A remote MCP server is reached over plain HTTP, so its tools and your data can be read or changed on the way.",
-                fix: INSECURE_URL_FIX,
-                secret: None,
-            },
-        ));
+            out.push((
+                finding(
+                    file,
+                    text,
+                    line,
+                    Meta {
+                        id: "agent.mcp-insecure-url",
+                        family: Family::Agent,
+                        severity: Severity::High,
+                        message: "A remote MCP server is reached over plain HTTP, so its tools and your data can be read or changed on the way.",
+                        fix: INSECURE_URL_FIX,
+                    },
+                ),
+                None,
+            ));
         }
     }
 }
@@ -681,10 +717,10 @@ fn npm_pinned(pkg: &str) -> bool {
     }
 }
 
-/// The offset of each key of the object whose `{` is at `open` (the first one if a key repeats),
-/// skipping nested values, strings and comments. One pass, so looking up every server or every
-/// key of a large object stays linear.
-fn object_keys(src: &str, open: usize) -> HashMap<&str, usize> {
+/// The offset of each key of the object whose `{` is at `open` (the last one if a key repeats,
+/// matching `serde_json`), skipping nested values, strings and comments. One pass, so looking up
+/// every server or every key of a large object stays linear.
+fn object_keys(src: &str, open: usize) -> HashMap<Cow<'_, str>, usize> {
     let b = src.as_bytes();
     let mut keys = HashMap::new();
     let mut i = open + 1;
@@ -693,8 +729,17 @@ fn object_keys(src: &str, open: usize) -> HashMap<&str, usize> {
         match b[i] {
             b'"' => {
                 let Some(end) = string_end(b, i) else { break };
-                if depth == 1 && b[skip_blank(b, end + 1)..].first() == Some(&b':') {
-                    keys.entry(&src[i + 1..end]).or_insert(i);
+                let after = skip_blank_and_comments(src, end + 1);
+                if depth == 1 && b.get(after) == Some(&b':') {
+                    let raw_key = &src[i + 1..end];
+                    let key = if raw_key.contains('\\') {
+                        serde_json::from_str::<String>(&src[i..=end])
+                            .map(Cow::Owned)
+                            .unwrap_or(Cow::Borrowed(raw_key))
+                    } else {
+                        Cow::Borrowed(raw_key)
+                    };
+                    keys.insert(key, i);
                 }
                 i = end;
             }
@@ -718,11 +763,8 @@ fn object_keys(src: &str, open: usize) -> HashMap<&str, usize> {
     keys
 }
 
-/// The offset of the `{` that opens the file's top-level object, after any blank space and
-/// comments.
-fn root_object(src: &str) -> Option<usize> {
+fn skip_blank_and_comments(src: &str, mut i: usize) -> usize {
     let b = src.as_bytes();
-    let mut i = 0;
     loop {
         i = skip_blank(b, i);
         if b[i..].starts_with(b"//") {
@@ -730,18 +772,36 @@ fn root_object(src: &str) -> Option<usize> {
         } else if b[i..].starts_with(b"/*") {
             i = src[i + 2..].find("*/").map_or(b.len(), |n| i + 4 + n);
         } else {
-            return (b.get(i) == Some(&b'{')).then_some(i);
+            return i;
         }
     }
+}
+
+/// The offset of the `{` that opens the file's top-level object, after any blank space and
+/// comments.
+fn root_object(src: &str) -> Option<usize> {
+    let i = skip_blank_and_comments(src, 0);
+    (src.as_bytes().get(i) == Some(&b'{')).then_some(i)
 }
 
 /// The offset of the `{` that starts the value of the key at `key_at`, if it is an object.
 fn value_object(src: &str, key_at: usize) -> Option<usize> {
     let b = src.as_bytes();
-    let colon = skip_blank(b, string_end(b, key_at)? + 1);
+    let colon = skip_blank_and_comments(src, string_end(b, key_at)? + 1);
     (b.get(colon) == Some(&b':')).then_some(())?;
-    let open = skip_blank(b, colon + 1);
+    let open = skip_blank_and_comments(src, colon + 1);
     (b.get(open) == Some(&b'{')).then_some(open)
+}
+
+/// The inner byte range of the JSON string value for the key at `key_at`, excluding quotes.
+fn value_string(src: &str, key_at: usize) -> Option<(usize, usize)> {
+    let b = src.as_bytes();
+    let colon = skip_blank_and_comments(src, string_end(b, key_at)? + 1);
+    (b.get(colon) == Some(&b':')).then_some(())?;
+    let open = skip_blank_and_comments(src, colon + 1);
+    (b.get(open) == Some(&b'"')).then_some(())?;
+    let close = string_end(b, open)?;
+    Some((open + 1, close))
 }
 
 fn string_end(b: &[u8], open: usize) -> Option<usize> {
@@ -1056,12 +1116,12 @@ mod tests {
   }
 }"#;
         let findings = structured(&file, &Text::new(unsafe_cfg));
-        let lines: Vec<usize> = findings.iter().map(|f| f.line).collect();
+        let lines: Vec<usize> = findings.iter().map(|(f, _)| f.line).collect();
         assert_eq!(lines, vec![6, 7, 8]);
         assert!(
             findings
                 .iter()
-                .all(|f| f.rule == "agent.unrestricted-shell")
+                .all(|(f, _)| f.rule == "agent.unrestricted-shell")
         );
     }
 }

@@ -561,6 +561,80 @@ fn public_env_secret_value_is_redacted() {
 }
 
 #[test]
+fn multiple_secrets_on_one_line_are_redacted_in_every_output() {
+    let dir =
+        std::env::temp_dir().join(format!("safe-anything-multi-secret-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let gh1 = common::fake("github");
+    let gh2 = ["gh", "p_", "9876543210ZyXwVuTsRqPoNmLkJiHgFeDcBa"].concat();
+    let aws = common::fake("aws");
+    let npm = ["np", "m_", "ZzYyXxWwVvUuTtSsRrQqPpOoNnMmLlKkJjIi"].concat();
+    let pub_val = common::fake("db-password");
+    let mcp1 = ["FirstMcp", "SecretValue", "Alpha99"].concat();
+    let mcp2 = ["SecondMcp", "SecretValue", "Bravo88"].concat();
+    let mcp_esc = [r"esc\/", r"\u004d", r"\u001F", "Charlie77"].concat();
+    let long_pw = ["LongLine", "SecretPass", "Delta66"].concat();
+    let pad = "x".repeat(8192);
+
+    let js = [
+        format!("const pair = [\"{gh1}\", \"{gh2}\"];"),
+        format!("const mixed = {{ aws: \"{aws}\", gh: \"{gh1}\" }};"),
+        format!("eval(\"{npm}\");"),
+        format!("const t = \"{gh2}\"; VITE_ADMIN_PASSWORD={pub_val}"),
+        format!("login(\"{long_pw}\");var cfg={{password:\"{long_pw}\"}};//{pad}"),
+        format!("eval(x); const s = \"{gh1}\"; // safe-anything:ignore secret.github-token"),
+    ]
+    .join("\n")
+        + "\n";
+    let mcp = format!(
+        "{{\"mcpServers\":{{\"s\":{{\"command\":\"npx\",\"args\":[\"-y\",\"pkg\"],\"env\":{{\"API_TOKEN\":\"{mcp1}\",\"DB_PASSWORD\":\"{mcp2}\",\"AUTH_KEY\":\"{mcp_esc}\"}}}}}}}}\n"
+    );
+    std::fs::write(dir.join("multi.js"), js).unwrap();
+    std::fs::write(dir.join(".mcp.json"), mcp).unwrap();
+
+    let path = dir.to_string_lossy().into_owned();
+    let leaks = [
+        &gh1[4..],
+        &gh2[4..],
+        &aws[4..],
+        &npm[4..],
+        pub_val.as_str(),
+        &mcp1[4..],
+        &mcp2[4..],
+        "Charlie77",
+        &long_pw[4..],
+    ];
+    for extra in [None, Some("--json"), Some("--sarif")] {
+        let mut args = vec![path.as_str(), "--offline"];
+        args.extend(extra);
+        let (_, out) = run(&args);
+        for leaked in &leaks {
+            assert!(
+                !out.contains(leaked),
+                "secret tail {leaked:?} leaked with {args:?}:\n{out}"
+            );
+        }
+        for rule in [
+            "secret.github-token",
+            "secret.aws-access-key",
+            "secret.npm-token",
+            "code.eval",
+            "secret.public-env-secret",
+            "agent.mcp-unpinned",
+            "agent.mcp-plaintext-secret",
+        ] {
+            assert!(
+                out.contains(rule),
+                "expected {rule} in output for {args:?}:\n{out}"
+            );
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn help_shows_mcp_and_how_to_ignore() {
     let (code, out) = run(&["--help"]);
     assert_eq!(code, 0);

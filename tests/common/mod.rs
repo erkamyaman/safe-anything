@@ -136,6 +136,9 @@ pub fn fake(name: &str) -> String {
         "doppler" => ["dp", ".pt.", &body(43, MIXED)].concat(),
         "rubygems" => ["ruby", "gems_", &body(48, HEX)].concat(),
         "rubygems-upper" => ["ruby", "gems_", &body(48, HEX).to_uppercase()].concat(),
+        "databricks" => ["da", "pi", &body(32, HEX)].concat(),
+        "databricks-suffix" => ["da", "pi", &body(32, HEX), "-2"].concat(),
+        "databricks-upper" => ["da", "pi", &body(32, HEX).to_uppercase()].concat(),
         "age" => ["AGE-SECRET-", "KEY-1", &body(58, BECH32)].concat(),
         // `B` is not in the Bech32 alphabet.
         "age-not-bech32" => ["AGE-SECRET-", "KEY-1", &body(57, BECH32), "B"].concat(),
