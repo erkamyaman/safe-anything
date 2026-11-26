@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Config and agent files: `remote-script` also reports a shell option with a value before `-c`
+  (`bash -o pipefail -c "$(curl ...)"`, `sh -e -o nounset -c ...`) and sudo flags combined with a
+  value flag in one word (`curl ... | sudo -Eu root bash`, `sudo -HEu "$USER" bash`).
 - Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
   `github.event.workflow_run.head_branch`, `.display_title`, `.head_commit.message` and the head commit's
   author and committer name and email pasted into a `run:` step are reported. Fields the triggering run

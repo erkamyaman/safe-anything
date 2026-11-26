@@ -54,7 +54,7 @@ pub static RULES: &[Rule] = &[
         "config.remote-script",
         Medium,
         shell_or_workflow,
-        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:--?(?:[ugCDhprtTU]|user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout)\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[ugCDhprtTU]\S+\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
+        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:--?(?:[AbBEeHiKklnPSsVv]*[ugCDhprtTU]|user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout)\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[AbBEeHiKklnPSsVv]*[ugCDhprtTU]\S+\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:[-+]o\s+[\w-]+\s+|-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
         None,
         "A script is downloaded and piped straight into a shell, with no pinning or checksum.",
         "Download to a file, verify a pinned checksum or signature, then run it; or use a package manager."
