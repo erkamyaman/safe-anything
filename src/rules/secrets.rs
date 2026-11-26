@@ -326,6 +326,18 @@ pub static RULES: &[Rule] = &[
         "A Twilio API key is written in the file."
     ),
     secret!(
+        "secret.linear-api-key",
+        Critical,
+        r"\blin_api_[A-Za-z0-9]{40}\b",
+        "A Linear API key is written in the file."
+    ),
+    secret!(
+        "secret.postman-api-key",
+        Critical,
+        r"\bPMAK-[0-9a-fA-F]{24}-[0-9a-fA-F]{34}\b",
+        "A Postman API key is written in the file."
+    ),
+    secret!(
         "secret.private-key",
         Critical,
         // A PEM file has real line breaks. A JSON string (a Google
