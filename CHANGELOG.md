@@ -2,10 +2,17 @@
 
 ## Unreleased
 
+- Config: `config.gha-script-injection` also checks `workflow_run` workflows, so
+  `github.event.workflow_run.head_branch`, `.display_title`, `.head_commit.message` and the head commit's
+  author and committer name and email pasted into a `run:` step are reported. Fields the triggering run
+  can't set, like `workflow_run.id`, `.conclusion` or `.repository.name`, are not.
 - Dependencies: a lockfile over 2 MB is read again (up to 64 MB) instead of being skipped with "0 packages
   checked". A larger one is named in the report (`lockfiles_too_large` in JSON). npm, Composer and Pipfile
   lockfiles are also read in one pass, whatever their key order: 0.12 s instead of 4.3 s for a 3 MB
   package-lock.json, 0.5 s for 60 MB.
+
+## 1.1.0 (2026-11-25)
+
 - Agent: `agent.mcp-plaintext-secret` also checks the `headers` and `http_headers` of remote MCP servers
   in JSON configs. `Authorization` and `Proxy-Authorization` always count. In `env` and headers alike, a
   value is judged after its auth scheme and with its variables taken out: `Bearer ${API_TOKEN}` and
@@ -100,6 +107,8 @@
 - CLI: `safe-anything --help` now shows a few examples, including `safe-anything mcp`, and how to ignore a finding (`safe-anything:ignore` or `.safe-anything-ignore`).
 - Secrets: new rule `secret.google-oauth-secret` (high) for Google OAuth client secrets (`GOCSPX-` followed by 28 letters, digits, `_` or `-`).
 - Dependencies: `Pipfile.lock` is read, so Pipenv projects are checked against OSV.dev (`PyPI` ecosystem), `default` and `develop` packages alike. Entries from git, a path or an editable install are skipped.
+
+Thanks to everyone who contributed to this release: @OnurrUgur, @ghozali25, @Prashaxt, @MaxonT, @gasparoff, @sniwas, @lyn1dev, @brixtonpham, @jay23606, @tridev-tej, @pethapixels-create and @PrajsRamteke.
 
 ## 1.0.2 (2026-11-23)
 

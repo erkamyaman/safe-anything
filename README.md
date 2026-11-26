@@ -146,7 +146,7 @@ Tools: `scan` (path, offline, severity, include_tests) and `list_rules`. The ski
 ## In CI
 
 ```yaml
-- uses: erkamyaman/safe-anything@v1.0.2
+- uses: erkamyaman/safe-anything@v1.1.0
   with:
     fail-on: high
     # baseline: .safe-anything-baseline.json   # fail only on findings not in it
