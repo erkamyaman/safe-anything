@@ -100,6 +100,20 @@ pub fn terminal(report: &Report, style: &Style) -> String {
             )
         )
     );
+    if !report.lockfiles_too_large.is_empty() {
+        let _ = writeln!(
+            out,
+            "{}",
+            style.paint(
+                "2",
+                &format!(
+                    "Not checked, over {} MB: {}.",
+                    crate::engine::MAX_LOCK_BYTES / (1024 * 1024),
+                    report.lockfiles_too_large.join(", ")
+                )
+            )
+        );
+    }
     out
 }
 
