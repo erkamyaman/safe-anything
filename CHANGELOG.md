@@ -4,6 +4,14 @@
 
 - Secrets: new rule `secret.heroku-key` (critical) for Heroku API keys (`HRKU-AA` followed by 58
   letters, digits, `_` or `-`).
+- Secrets: new rule `secret.notion-token` (critical) for Notion integration tokens (`ntn_`
+  followed by 11 digits and 35 letters or digits).
+- Secrets: new rule `secret.perplexity-key` (critical) for Perplexity API keys (`pplx-`
+  followed by 48 letters and digits).
+- Secrets: new rule `secret.dockerhub-token` (critical) for Docker Hub personal access tokens
+  (`dckr_pat_` followed by 27 letters, digits, `_` or `-`).
+- Secrets: new rule `secret.age-key` (critical) for age private keys (`AGE-SECRET-KEY-1` followed by
+  58 upper-case Bech32 characters), which decrypt every file encrypted to them, SOPS files included.
 - Secrets: when a line holds more than one secret or more than one finding, all secrets on that
   line are now masked in every finding on it (two tokens of one kind, tokens of different kinds, a
   token beside a `NEXT_PUBLIC_` or `VITE_` secret, another rule's finding on the same line such as

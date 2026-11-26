@@ -311,6 +311,12 @@ pub static RULES: &[Rule] = &[
         "A RubyGems API key is written in the file."
     ),
     secret!(
+        "secret.dockerhub-token",
+        Critical,
+        r"\b(dckr_pat_[A-Za-z0-9_\-]{27})(?:[^A-Za-z0-9_\-]|\z)",
+        "A Docker Hub personal access token is written in the file."
+    ),
+    secret!(
         "secret.huggingface-token",
         Critical,
         r"\bhf_[A-Za-z]{34}\b",
@@ -335,6 +341,12 @@ pub static RULES: &[Rule] = &[
         "A Groq API key is written in the file."
     ),
     secret!(
+        "secret.perplexity-key",
+        Critical,
+        r"\bpplx-[A-Za-z0-9]{48}\b",
+        "A Perplexity API key is written in the file."
+    ),
+    secret!(
         "secret.google-api-key",
         High,
         r"\bAIza[0-9A-Za-z_\-]{35}",
@@ -345,6 +357,12 @@ pub static RULES: &[Rule] = &[
         High,
         r"\bGOCSPX-[A-Za-z0-9_\-]{28}(?:[^A-Za-z0-9_\-]|\z)",
         "A Google OAuth client secret is written in the file."
+    ),
+    secret!(
+        "secret.notion-token",
+        Critical,
+        r"\bntn_[0-9]{11}[A-Za-z0-9]{35}\b",
+        "A Notion integration token is written in the file."
     ),
     secret!(
         "secret.mailgun-key",
@@ -373,7 +391,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.heroku-key",
         Critical,
-        r"(HRKU-AA[0-9A-Za-z_\-]{58})(?:[^0-9A-Za-z_\-]|\z)",
+        r"(?:\\[nrt]|\b)(HRKU-AA[0-9A-Za-z_\-]{58})(?:[^0-9A-Za-z_\-]|\z)",
         "A Heroku API key is written in the file."
     ),
     secret!(
@@ -423,6 +441,14 @@ pub static RULES: &[Rule] = &[
         Critical,
         r"\bdp\.pt\.[A-Za-z0-9]{43}\b",
         "A Doppler personal token is written in the file."
+    ),
+    secret!(
+        "secret.age-key",
+        Critical,
+        // In a JSON string the key can follow an escape like `\n`, where `\b` fails
+        // between `n` and `A`.
+        r"(?:\\[nrt]|\b)(AGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58})\b",
+        "An age private key is written in the file."
     ),
     secret!(
         "secret.private-key",
@@ -707,6 +733,39 @@ mod tests {
         for (shape, value) in rejected {
             assert_eq!(value.len(), 40, "{shape}");
             assert!(!plausible_aws_secret(&value), "{shape}: {value}");
+        }
+    }
+
+    #[test]
+    fn age_key_after_json_escape() {
+        let key = [
+            "AGE-SECRET-",
+            "KEY-1",
+            &"QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L".repeat(2)[..58],
+        ]
+        .concat();
+        let age = |src: &str| -> Vec<_> {
+            check(&FileInfo::new("keys.json"), src, false)
+                .into_iter()
+                .filter(|f| f.rule == "secret.age-key")
+                .collect()
+        };
+        for src in [
+            format!(r#"{{"key":"line\n{key}"}}"#),
+            format!(r#"{{"key":"line\r\n{key}\n"}}"#),
+            format!(r#"{{"key":"\t{key}"}}"#),
+            format!("key = \"{key}\""),
+        ] {
+            let found = age(&src);
+            assert_eq!(found.len(), 1, "{src} => {found:#?}");
+            assert!(!found[0].snippet.contains(&key), "{src} => {found:#?}");
+        }
+        for src in [
+            format!("X{key}"),
+            format!("{key}Q"),
+            format!(r#""line\n{key}Q""#),
+        ] {
+            assert!(age(&src).is_empty(), "{src}");
         }
     }
 }

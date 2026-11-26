@@ -9,6 +9,8 @@ const MIXED: &str = "Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG";
 const UPPER: &str = "Q7MZ2XK9PL4VR8TN3WB6YH1CF5JD0SG";
 const LETTERS: &str = "QmZxKpLvRtNwByHcFjDsG";
 const HEX: &str = "a3f91c07d5e284b6";
+// The Bech32 alphabet in upper case, as age writes its keys.
+const BECH32: &str = "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L";
 // Unlike the others, so a leak of this body is not mistaken for another token.
 const KEY_BODY: &str = "Zr8Wq2Xn5Mb7Vc4Lk1Jh6Gf9Dd3Ss0AaUe";
 
@@ -69,6 +71,11 @@ pub fn fake(name: &str) -> String {
         "google-oauth-hyphen" => ["GO", "CSPX-", &body(27, MIXED), "-"].concat(),
         "mailgun" => ["ke", "y-", &body(32, HEX)].concat(),
         "groq" => ["gs", "k_", &body(52, MIXED)].concat(),
+        "perplexity" => ["pp", "lx-", &body(48, MIXED)].concat(),
+        "perplexity-upper" => ["pp", "lx-", &body(48, MIXED).to_uppercase()].concat(),
+        "notion" => ["nt", "n_", "1234", "5678901", &body(35, MIXED)].concat(),
+        "notion-letter-in-prefix" => ["nt", "n_", "1234", "567a901", &body(35, MIXED)].concat(),
+        "notion-short" => ["nt", "n_", "1234", "5678901", &body(34, MIXED)].concat(),
         "telegram" => ["1234", "567890", ":", &body(35, MIXED)].concat(),
         "telegram-hyphen" => ["1234", "567890", ":", &body(34, MIXED), "-"].concat(),
         "password" => ["hunter2", "hunter2"].concat(),
@@ -137,6 +144,10 @@ pub fn fake(name: &str) -> String {
         "databricks" => ["da", "pi", &body(32, HEX)].concat(),
         "databricks-suffix" => ["da", "pi", &body(32, HEX), "-2"].concat(),
         "databricks-upper" => ["da", "pi", &body(32, HEX).to_uppercase()].concat(),
+        "age" => ["AGE-SECRET-", "KEY-1", &body(58, BECH32)].concat(),
+        // `B` is not in the Bech32 alphabet.
+        "age-not-bech32" => ["AGE-SECRET-", "KEY-1", &body(57, BECH32), "B"].concat(),
+        "dockerhub" => ["dckr", "_pat_", &body(26, MIXED), "-"].concat(),
         "heroku" => ["HR", "KU-AA", &body(57, MIXED), "-"].concat(),
         "heroku-short" => ["HR", "KU-AA", &body(57, MIXED)].concat(),
         "heroku-no-aa" => ["HR", "KU-", &body(58, MIXED)].concat(),
