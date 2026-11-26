@@ -1,6 +1,6 @@
 [package]
 name = "safe-anything"
-version = "1.0.2"
+version = "1.1.0"
 edition = "2024"
 description = "Find vulnerabilities in any app, and in the AI agent setup that builds it. One fast command, 100% Rust."
 license = "MIT"
