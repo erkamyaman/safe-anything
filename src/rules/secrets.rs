@@ -368,6 +368,12 @@ pub static RULES: &[Rule] = &[
         "A Doppler personal token is written in the file."
     ),
     secret!(
+        "secret.age-key",
+        Critical,
+        r"\bAGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}\b",
+        "An age private key is written in the file."
+    ),
+    secret!(
         "secret.private-key",
         Critical,
         // A PEM file has real line breaks. A JSON string (a Google

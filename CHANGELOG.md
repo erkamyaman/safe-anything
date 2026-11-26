@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: new rule `secret.age-key` (critical) for age private keys (`AGE-SECRET-KEY-1` followed by
+  58 upper-case Bech32 characters), which decrypt every file encrypted to them, SOPS files included.
 - Secrets: `secret.gitlab-token` also finds GitLab deploy tokens (`gldt-` and 20 letters, digits, `_` or `-`)
   and pipeline trigger tokens (`glptt-` and 40 lowercase hex).
 - Secrets: `secret.slack-token` also finds Slack app-level tokens (`xapp-1-A0123...-1234567890123-` and

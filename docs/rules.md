@@ -32,7 +32,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`code.sql-grant-all`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-250](https://cwe.mitre.org/data/definitions/250.html) | A01:2021 Broken Access Control | A database user gets every privilege on every database. |
 | [`code.sql-plaintext-password`](https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html) | medium | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A database password is written in a SQL file. |
 
-## Secrets (37)
+## Secrets (38)
 
 | Rule | Severity | CWE | OWASP | What it means |
 | --- | --- | --- | --- | --- |
@@ -66,6 +66,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`secret.supabase-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Supabase access token is written in the file. |
 | [`secret.grafana-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Grafana service account token is written in the file. |
 | [`secret.doppler-token`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A Doppler personal token is written in the file. |
+| [`secret.age-key`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | critical | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | An age private key is written in the file. |
 | [`secret.private-key`](https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html) | critical | [CWE-321](https://cwe.mitre.org/data/definitions/321.html) | A02:2021 Cryptographic Failures | A private key is stored in the repository. |
 | [`secret.hardcoded-password`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A password or secret is written in the code. |
 | [`secret.url-credentials`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | A07:2021 Identification and Authentication Failures | A connection string carries a username and password. |

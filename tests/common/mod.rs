@@ -9,6 +9,8 @@ const MIXED: &str = "Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG";
 const UPPER: &str = "Q7MZ2XK9PL4VR8TN3WB6YH1CF5JD0SG";
 const LETTERS: &str = "QmZxKpLvRtNwByHcFjDsG";
 const HEX: &str = "a3f91c07d5e284b6";
+// The Bech32 alphabet in upper case, as age writes its keys.
+const BECH32: &str = "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L";
 // Unlike the others, so a leak of this body is not mistaken for another token.
 const KEY_BODY: &str = "Zr8Wq2Xn5Mb7Vc4Lk1Jh6Gf9Dd3Ss0AaUe";
 
@@ -134,6 +136,9 @@ pub fn fake(name: &str) -> String {
         "doppler" => ["dp", ".pt.", &body(43, MIXED)].concat(),
         "rubygems" => ["ruby", "gems_", &body(48, HEX)].concat(),
         "rubygems-upper" => ["ruby", "gems_", &body(48, HEX).to_uppercase()].concat(),
+        "age" => ["AGE-SECRET-", "KEY-1", &body(58, BECH32)].concat(),
+        // `B` is not in the Bech32 alphabet.
+        "age-not-bech32" => ["AGE-SECRET-", "KEY-1", &body(57, BECH32), "B"].concat(),
         other => panic!("no fake value named {other}"),
     }
 }
