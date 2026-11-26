@@ -47,9 +47,6 @@ fn skipped_by_name(info: &FileInfo) -> bool {
         || info.ext_in(BINARY_EXTS)
 }
 
-/// Reads a file whose first 8 KB hold no zero byte. A binary file is left
-/// after those 8 KB instead of being read in full. `len` is the size from the
-/// file's metadata; a file that has grown past `max` since is skipped.
 /// A file `read_text` could read. `None` from it means binary or unreadable.
 enum Contents {
     Text(Vec<u8>),
@@ -57,6 +54,9 @@ enum Contents {
     TooLarge,
 }
 
+/// Reads a file whose first 8 KB hold no zero byte. A binary file is left
+/// after those 8 KB instead of being read in full. `len` is the size from the
+/// file's metadata; a file that has grown past `max` since is reported as `TooLarge`.
 fn read_text(path: &Path, len: u64, max: u64) -> Option<Contents> {
     const HEAD: u64 = 8192;
     let mut file = File::open(path).ok()?;
