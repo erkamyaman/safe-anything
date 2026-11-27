@@ -470,14 +470,16 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
                     .captures(line)
                     .is_none_or(|c| &c[1] == "run" || &c[1] == "script")
         }
-        // In a workflow only a `run:` step (or a line of its block) runs; a step `name:` or a
-        // commented-out line doesn't.
-        "config.remote-script" if workflow(file) => {
+        // A `#` comment line in a shell script, PowerShell script, Dockerfile, Makefile or
+        // workflow does not run; in a workflow, only a `run:` or `script:` step (or a line of
+        // its block) runs, not a step `name:`.
+        "config.remote-script" => {
             let line = text.line(f.line);
             !line.trim_start().starts_with('#')
-                && STEP_KEY
-                    .captures(line)
-                    .is_none_or(|c| &c[1] == "run" || &c[1] == "script")
+                && (!workflow(file)
+                    || STEP_KEY
+                        .captures(line)
+                        .is_none_or(|c| &c[1] == "run" || &c[1] == "script"))
         }
         "config.tf-public-access-block" => {
             let line = text.line(f.line);
@@ -703,6 +705,39 @@ mod tests {
         let mut walk = HclWalk::default();
         for &at in offsets.iter().chain(offsets.iter().rev()) {
             assert_eq!(walk.block_at(src, at), HclWalk::default().block_at(src, at));
+        }
+    }
+
+    #[test]
+    fn remote_script_skips_comment_lines() {
+        for (path, src, want) in [
+            (
+                "i.sh",
+                "#!/bin/sh\n# curl https://x.io/i.sh | bash\n  # sh -c \"$(curl https://x.io/i.sh)\"\ncurl https://x.io/i.sh | sh\n",
+                4,
+            ),
+            (
+                "i.ps1",
+                "# irm https://x.io/i.ps1 | iex\nirm https://x.io/i.ps1 | iex\n",
+                2,
+            ),
+            (
+                "Dockerfile",
+                "# RUN curl https://x.io/i.sh | sh\nRUN curl https://x.io/i.sh | sh\n",
+                2,
+            ),
+            (
+                "Makefile",
+                "# curl https://x.io/i.sh | sh\nall:\n\tcurl https://x.io/i.sh | sh\n",
+                3,
+            ),
+        ] {
+            let lines: Vec<usize> = crate::rules::check(&FileInfo::new(path), src, true)
+                .into_iter()
+                .filter(|f| f.rule == "config.remote-script")
+                .map(|f| f.line)
+                .collect();
+            assert_eq!(lines, [want], "{path}");
         }
     }
 }

@@ -7,3 +7,4 @@ ADD https://get.acme.io/tool.tar.gz /opt/
 RUN curl -fsSL https://get.acme.sh | sh
 USER root
 FROM build AS production
+# RUN curl -fsSL https://get.acme.sh | sh
