@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- Config: `config.remote-script` now skips `#` comment lines and unquoted `#` comments before
-  `| sh` / `| bash` / `| iex` in shell scripts, PowerShell scripts, and Dockerfiles, while keeping
-  quoted `#` URL fragments (`curl "https://.../install.sh#v1" | sh`) flagged.
+- Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
+  scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
+  as it already did in workflows.
 - Secrets: `secret.env-file` and `secret.env-example-value` no longer report file paths starting
   with `/`, `./`, `../` or `~/` on variables ending in `_FILE`, `_PATH` or `_DIR` or named `PWD`
   (`POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password`, `PRIVATE_KEY_PATH=./certs/server.key`,
