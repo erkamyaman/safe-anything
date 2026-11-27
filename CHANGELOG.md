@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Dependencies: a `bun.lockb` that sits next to a `bun.lock` in the same folder is no
+  longer named, since that `bun.lock` was read and the note would only repeat advice that is
+  already followed.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.

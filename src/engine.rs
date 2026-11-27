@@ -186,6 +186,11 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
             })
         });
     let mut scanned = out.into_inner().unwrap();
+    // A `bun.lock` next to a `bun.lockb` means the project already moved to the
+    // text lockfile, which was read, so the old binary one is not worth naming.
+    scanned
+        .lockfiles_binary
+        .retain(|rel| !base.join(rel).with_file_name("bun.lock").exists());
     scanned.packages.sort();
     scanned.packages.dedup();
     scanned.lockfiles_too_large.sort();
