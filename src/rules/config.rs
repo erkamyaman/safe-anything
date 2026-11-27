@@ -298,6 +298,174 @@ static PUBLIC_ACCESS_OFF: LazyLock<Regex> = LazyLock::new(|| {
         .expect("the rule is in RULES");
     Regex::new(rule.pattern).unwrap()
 });
+// Re-used in `keep` after stripping a trailing `#` comment from a matched line.
+static REMOTE_SCRIPT: LazyLock<Regex> = LazyLock::new(|| {
+    let rule = RULES
+        .iter()
+        .find(|r| r.id == "config.remote-script")
+        .expect("the rule is in RULES");
+    Regex::new(rule.pattern).unwrap()
+});
+
+enum ShellFrame {
+    DoubleQuote,
+    CmdSubst { parens: usize },
+    ParamExpand { braces: usize },
+}
+
+enum SingleQuote {
+    None,
+    Plain,
+    AnsiC,
+}
+
+/// The runnable prefix of a shell, PowerShell, Dockerfile, Makefile or workflow line, ending at
+/// the first `#` that starts a comment (at the start of a word, outside quotes and escapes).
+fn strip_shell_comment(line: &str, powershell: bool) -> &str {
+    let b = line.as_bytes();
+    let escape = if powershell { b'`' } else { b'\\' };
+    let mut frames: Vec<ShellFrame> = Vec::new();
+    let mut single = SingleQuote::None;
+    let mut word_start = true;
+    let mut i = 0;
+
+    while i < b.len() {
+        let ch = b[i];
+        match single {
+            SingleQuote::Plain => {
+                if ch == b'\'' {
+                    single = SingleQuote::None;
+                    word_start = false;
+                }
+                i += 1;
+                continue;
+            }
+            SingleQuote::AnsiC => {
+                if ch == b'\\' {
+                    i = (i + 2).min(b.len());
+                    continue;
+                }
+                if ch == b'\'' {
+                    single = SingleQuote::None;
+                    word_start = false;
+                }
+                i += 1;
+                continue;
+            }
+            SingleQuote::None => {}
+        }
+        // `$(...)` and non-PowerShell `${...}` can nest quotes both inside double quotes and
+        // unquoted.
+        if ch == b'$' && b.get(i + 1) == Some(&b'(') {
+            frames.push(ShellFrame::CmdSubst { parens: 1 });
+            word_start = true;
+            i += 2;
+            continue;
+        }
+        if !powershell && ch == b'$' && b.get(i + 1) == Some(&b'{') {
+            frames.push(ShellFrame::ParamExpand { braces: 1 });
+            word_start = false;
+            i += 2;
+            continue;
+        }
+        if matches!(frames.last(), Some(ShellFrame::DoubleQuote)) {
+            if ch == escape {
+                i = (i + 2).min(b.len());
+                continue;
+            }
+            if ch == b'"' {
+                frames.pop();
+                word_start = false;
+            }
+            i += 1;
+            continue;
+        }
+        match ch {
+            c if c == escape => {
+                i = (i + 2).min(b.len());
+                word_start = false;
+                continue;
+            }
+            b'$' if !powershell && b.get(i + 1) == Some(&b'\'') => {
+                single = SingleQuote::AnsiC;
+                word_start = false;
+                i += 2;
+                continue;
+            }
+            b'\'' => {
+                single = SingleQuote::Plain;
+                word_start = false;
+            }
+            b'"' => {
+                frames.push(ShellFrame::DoubleQuote);
+                word_start = false;
+            }
+            b'{' => {
+                if let Some(ShellFrame::ParamExpand { braces }) = frames.last_mut() {
+                    *braces += 1;
+                }
+                word_start = false;
+            }
+            b'}' => {
+                if let Some(ShellFrame::ParamExpand { braces }) = frames.last_mut() {
+                    *braces -= 1;
+                    if *braces == 0 {
+                        frames.pop();
+                    }
+                }
+                word_start = false;
+            }
+            b'(' => {
+                if let Some(ShellFrame::CmdSubst { parens }) = frames.last_mut() {
+                    *parens += 1;
+                }
+                word_start = true;
+            }
+            b')' => {
+                if let Some(ShellFrame::CmdSubst { parens }) = frames.last_mut() {
+                    *parens -= 1;
+                    if *parens == 0 {
+                        frames.pop();
+                        word_start = false;
+                    } else {
+                        word_start = true;
+                    }
+                } else {
+                    word_start = true;
+                }
+            }
+            // In PowerShell, `<# ... #>` is a block comment; skip inline blocks and do not treat
+            // a closing `#>` as a `#` line comment.
+            b'<' if powershell && b.get(i + 1) == Some(&b'#') => {
+                if let Some(rel) = line[i + 2..].find("#>") {
+                    i += 2 + rel + 2;
+                    word_start = true;
+                    continue;
+                }
+                return &line[..i];
+            }
+            b'#' if word_start
+                && !matches!(frames.last(), Some(ShellFrame::ParamExpand { .. }))
+                && !(powershell && b.get(i + 1) == Some(&b'>')) =>
+            {
+                return &line[..i];
+            }
+            b' ' | b'\t' | b';' | b'&' | b'|' => {
+                word_start = true;
+            }
+            _ => {
+                word_start = false;
+            }
+        }
+        i += 1;
+    }
+    line
+}
+
+fn remote_script_in_code(line: &str, powershell: bool) -> bool {
+    let code = strip_shell_comment(line, powershell);
+    code.len() == line.len() || REMOTE_SCRIPT.is_match(code)
+}
 
 /// The end of the quoted string that opens at `b[start]`: the index of its closing quote, of the
 /// newline that ends it unclosed, or `b.len()`. A `${ ... }` or `%{ ... }` template inside may
@@ -470,12 +638,19 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
                     .captures(line)
                     .is_none_or(|c| &c[1] == "run" || &c[1] == "script")
         }
-        // A `#` comment line in a shell script, PowerShell script, Dockerfile, Makefile or
-        // workflow does not run; in a workflow, only a `run:` or `script:` step (or a line of
-        // its block) runs, not a step `name:`.
+        // A `#` comment (whole-line or trailing) in a shell script, PowerShell script, Dockerfile,
+        // Makefile or workflow does not run; in a workflow, only a `run:` or `script:` step (or a
+        // line of its block) runs, not a step `name:`. Re-check the line only when a comment was
+        // actually stripped so multi-line matches (e.g. `|\n  sh`) stay reported. Workflows can
+        // run either POSIX shells or `pwsh`, so keep a workflow finding if either dialect keeps it.
         "config.remote-script" => {
             let line = text.line(f.line);
-            !line.trim_start().starts_with('#')
+            let matches = if workflow(file) {
+                remote_script_in_code(line, false) || remote_script_in_code(line, true)
+            } else {
+                remote_script_in_code(line, file.ext == "ps1")
+            };
+            matches
                 && (!workflow(file)
                     || STEP_KEY
                         .captures(line)
@@ -713,23 +888,94 @@ mod tests {
         for (path, src, want) in [
             (
                 "i.sh",
-                "#!/bin/sh\n# curl https://x.io/i.sh | bash\n  # sh -c \"$(curl https://x.io/i.sh)\"\ncurl https://x.io/i.sh | sh\n",
-                4,
+                concat!(
+                    "#!/bin/sh\n",
+                    "# curl https://x.io/i.sh | bash\n",
+                    "  # sh -c \"$(curl https://x.io/i.sh)\"\n",
+                    "curl https://x.io/i.sh | sh\n",
+                    "curl -fsSL https://example.com/install.sh -o install.sh  # or: curl -fsSL https://example.com/install.sh | sh\n",
+                    "curl -fsSL https://example.com/install.sh -o install.sh;# or: curl -fsSL https://example.com/install.sh | sh\n",
+                    "echo hi # sh -c \"$(curl -fsSL https://example.com/i.sh)\"\n",
+                    "curl -fsSL \"https://example.com/i.sh#v1\" | sh\n",
+                    "curl -fsSL 'https://example.com/i.sh#v1' | sh\n",
+                    "curl -fsSL https://example.com/i.sh#v1 | sh\n",
+                    "curl -fsSL https://example.com/i.sh | sh # install\n",
+                    "curl -fsSL https://example.com/i.sh \\# | sh\n",
+                    "bash -c \"$(curl -H \"X-Note: a # b\" https://example.com/i.sh)\"\n",
+                    "curl -fsSL https://example.com/i.sh -o install.sh # | sh\n",
+                    "curl -fsSL https://example.com/i.sh |\n",
+                    "  sh\n",
+                    "bash -c \"$(\n",
+                    "  curl -fsSL https://example.com/i.sh\n",
+                    ")\"\n",
+                    "printf '%s\\n' $'it\\'s # text'; curl https://example.com/i.sh | sh\n",
+                    "curl https://example.com/${v/ #/-}.sh | sh\n",
+                    "echo \"${v:-\"a # b\"}\"; curl https://example.com/i.sh | sh\n",
+                    "curl -fsSL https://x.io/i.sh -o i.sh\t# sh -c \"$(curl https://x.io/i.sh)\"\n",
+                    "echo \"see docs\" # curl https://x.io/i.sh | bash\n",
+                    "curl -fsSL https://x.io/i.sh | sh -s -- \"$#\" # install\n",
+                    "sh -c \"$(curl -fsSL https://x.io/i.sh)\" # install\n",
+                    "echo it\\'s fine; curl -fsSL https://x.io/i.sh | sh\n",
+                ),
+                vec![4, 8, 9, 10, 11, 12, 13, 15, 17, 20, 21, 22, 25, 26, 27],
             ),
             (
                 "i.ps1",
-                "# irm https://x.io/i.ps1 | iex\nirm https://x.io/i.ps1 | iex\n",
-                2,
+                concat!(
+                    "# irm https://x.io/i.ps1 | iex\n",
+                    "irm https://x.io/i.ps1 -OutFile i.ps1 # or: irm https://x.io/i.ps1 | iex\n",
+                    "irm \"https://x.io/i.ps1#v1\" | iex\n",
+                    "irm https://x.io/i.ps1 | iex # install\n",
+                    "echo \"C:\\tmp\\\" # irm https://x.io/i.ps1 | iex\n",
+                    "<# note #> irm https://x.io/i.ps1 | iex\n",
+                    "#> irm https://x.io/i.ps1 | iex\n",
+                    "irm \"https://x.io/i.ps1?a=$(Get-Date -f \"yyyy # x\")\" | iex\n",
+                    "irm https://x.io/i.ps1 |\n",
+                    "  iex\n",
+                ),
+                vec![3, 4, 6, 7, 8, 9],
             ),
             (
                 "Dockerfile",
-                "# RUN curl https://x.io/i.sh | sh\nRUN curl https://x.io/i.sh | sh\n",
-                2,
+                concat!(
+                    "# RUN curl https://x.io/i.sh | sh\n",
+                    "RUN curl -fsSL https://x.io/i.sh -o i.sh # or: curl https://x.io/i.sh | sh\n",
+                    "RUN curl https://x.io/i.sh | sh\n",
+                ),
+                vec![3],
             ),
             (
                 "Makefile",
-                "# curl https://x.io/i.sh | sh\nall:\n\tcurl https://x.io/i.sh | sh\n",
-                3,
+                concat!(
+                    "# curl https://x.io/i.sh | sh\n",
+                    "all:\n",
+                    "\tcurl -fsSL https://x.io/i.sh -o i.sh # or: curl https://x.io/i.sh | sh\n",
+                    "\tcurl https://x.io/i.sh | sh\n",
+                ),
+                vec![4],
+            ),
+            (
+                "justfile",
+                concat!(
+                    "install:\n",
+                    "    curl -fsSL https://x.io/i.sh -o i.sh # or: curl https://x.io/i.sh | sh\n",
+                    "    curl https://x.io/i.sh | sh\n",
+                ),
+                vec![3],
+            ),
+            (
+                ".github/workflows/ci.yml",
+                concat!(
+                    "jobs:\n",
+                    "  build:\n",
+                    "    steps:\n",
+                    "      - run: curl -fsSL https://x.io/i.sh -o i.sh # or: curl https://x.io/i.sh | sh\n",
+                    "      - run: curl -fsSL https://x.io/i.sh | sh # install\n",
+                    "      - shell: pwsh\n",
+                    "        run: |\n",
+                    "          Write-Host \"a`\" # text\"; irm https://example.com/i.ps1 | iex\n",
+                ),
+                vec![5, 8],
             ),
         ] {
             let lines: Vec<usize> = crate::rules::check(&FileInfo::new(path), src, true)
@@ -737,7 +983,7 @@ mod tests {
                 .filter(|f| f.rule == "config.remote-script")
                 .map(|f| f.line)
                 .collect();
-            assert_eq!(lines, [want], "{path}");
+            assert_eq!(lines, want, "{path}");
         }
     }
 }
