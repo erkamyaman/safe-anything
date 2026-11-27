@@ -97,3 +97,6 @@ web/page.vue:1 code.xss-v-html
 web/app.js:34 code.open-redirect
 web/app.js:36 code.sql-injection
 web/app.js:38 code.sql-injection
+api/Repo.scala:1 code.sql-injection
+api/Repo.scala:2 code.sql-injection
+api/Repo.scala:6 code.sql-injection

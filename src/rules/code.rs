@@ -18,6 +18,9 @@ fn jvm(f: &FileInfo) -> bool {
 fn kotlin(f: &FileInfo) -> bool {
     f.ext_in(&["kt", "kts"])
 }
+fn scala(f: &FileInfo) -> bool {
+    f.ext_in(&["scala", "sc"])
+}
 fn php(f: &FileInfo) -> bool {
     f.ext_in(&["php", "phtml"])
 }
@@ -349,6 +352,22 @@ pub static RULES: &[Rule] = &[
         kotlin,
         concat!(
             r#""\s*"#,
+            kw!(".", r"(?:\s|\\[nrt])"),
+            r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
+        ),
+        None,
+        SQLI_MSG,
+        SQLI_FIX
+    ),
+    // Scala string interpolation (`s"SELECT ... $id"`, `s"... ${user.id}"`).
+    // Scala files only, and only with the `s` or `f` interpolator: `sql"..."`
+    // (Slick, doobie) binds `$id` as a parameter and stays quiet.
+    rule!(
+        "code.sql-injection",
+        High,
+        scala,
+        concat!(
+            r#"\b[sf]"\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
             r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
         ),
@@ -832,6 +851,43 @@ mod tests {
             assert!(
                 !sqli(&py_file, s),
                 "unexpected Python code.sql-injection for: {s}"
+            );
+        }
+    }
+
+    #[test]
+    fn scala_sql_injection_matches_interpolation() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            r#"val a = s"SELECT id FROM users WHERE id = $id""#,
+            r#"val b = s"SELECT id FROM users WHERE id = ${user.id}""#,
+            r#"val c = f"SELECT id FROM users WHERE id = $id""#,
+        ] {
+            for name in ["Repo.scala", "Repo.sc"] {
+                assert!(
+                    sqli(name, s),
+                    "expected Scala code.sql-injection in {name}: {s}"
+                );
+            }
+            // Java has no interpolator, so the same text is just a string there.
+            assert!(
+                !sqli("Repo.java", s),
+                "unexpected Java code.sql-injection: {s}"
+            );
+        }
+        for s in [
+            r#"val d = s"Selected $n users from the list""#,
+            r#"val e = sql"SELECT id FROM users WHERE id = $id""#,
+            r#"val g = "SELECT id FROM users WHERE id = $id""#,
+            r#"val h = s"SELECT id FROM users WHERE name = '\$name'""#,
+        ] {
+            assert!(
+                !sqli("Repo.scala", s),
+                "unexpected Scala code.sql-injection: {s}"
             );
         }
     }

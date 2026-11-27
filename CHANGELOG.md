@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now reports a Scala query built with the `s` or `f`
+  interpolator (`s"SELECT id FROM users WHERE id = $id"`) in `.scala` and `.sc` files.
+  `sql"..."` (Slick, doobie) binds the value and stays quiet, and so does a plain string.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.
