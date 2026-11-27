@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now reports a C# interpolated query with an escaped newline, tab or
+  carriage return before the next keyword (`$"SELECT Id\nFROM Users WHERE Id = {id}"`), as the
+  concatenation form already did.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.

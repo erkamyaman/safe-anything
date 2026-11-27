@@ -374,7 +374,7 @@ pub static RULES: &[Rule] = &[
             r#""\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"\s*\+\s*[A-Za-z_]|\$@?"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*\{"#
         ),
         None,
@@ -813,6 +813,25 @@ mod tests {
                     "unexpected code.sql-injection in {name}: {s}"
                 );
             }
+        }
+        // The C# interpolated branch, plain and verbatim.
+        for s in [
+            r#"q = $"SELECT Id\nFROM Users WHERE Id = {id}";"#,
+            r#"q = $"SELECT Id\tFROM Users WHERE Id = {id}";"#,
+            r#"q = $"SELECT Id\r\nFROM Users WHERE Id = {id}";"#,
+            r#"q = $"UPDATE Users\nSET Role = {role}";"#,
+            r#"q = $"DELETE\nFROM Sessions WHERE Id = {id}";"#,
+            r#"q = $@"SELECT Id FROM Users WHERE Id = {id}";"#,
+            "q = $@\"SELECT Id\nFROM Users WHERE Id = {id}\";",
+        ] {
+            assert!(sqli("Users.cs", s), "expected code.sql-injection: {s}");
+        }
+        for s in [
+            r#"msg = $"selected\n{n} files";"#,
+            r#"msg = $"selected\n{n} files from {dir}";"#,
+            r#"msg = $"updated\n{n} rows";"#,
+        ] {
+            assert!(!sqli("Users.cs", s), "unexpected code.sql-injection: {s}");
         }
     }
 }
