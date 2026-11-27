@@ -31,6 +31,7 @@
 .mcp.json:63 agent.mcp-plaintext-secret
 .mcp.json:69 agent.mcp-plaintext-secret
 .mcp.json:75 agent.mcp-plaintext-secret
+.mcp.json:75 secret.hardcoded-password
 .mcp.json:76 agent.mcp-plaintext-secret
 .mcp.json:5 agent.mcp-unpinned
 .mcp.json:7 agent.mcp-plaintext-secret

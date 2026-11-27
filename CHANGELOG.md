@@ -7,6 +7,9 @@
   matched name, so `connect(user="testuser", password="...")` and
   `{"env": "none", "password": "..."}` are reported, while a placeholder in the password's own
   value stays quiet.
+- Secrets: `secret.hardcoded-password` now also matches names where the secret word follows
+  `_`-separated words (`db_password`, `ADMIN_PWD`, `stripe_api_key`). The word still has to end
+  the name, so `password_hash` and `api_keys_count` stay quiet.
 - Secrets: `secret.env-file` and `secret.env-example-value` now also match variable names where
   `PASS` or `PWD` is a whole `_`-separated word (`DB_PASS`, `SMTP_PASS`, `PASS_FILE`, `MYSQL_PWD`),
   while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.
