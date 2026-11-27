@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Secrets: `secret.env-file` and `secret.env-example-value` no longer report file paths starting
+  with `/`, `./`, `../` or `~/` on variables ending in `_FILE`, `_PATH` or `_DIR` or named `PWD`
+  (`POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password`, `PRIVATE_KEY_PATH=./certs/server.key`,
+  `PWD=/srv/app/releases/current`), while still reporting non-path values and `/`-prefixed secrets
+  on other secret variables.
 - Secrets: `secret.hardcoded-password` no longer lets a placeholder-like value elsewhere on the
   line hide a real password. The placeholder check now only looks at the value right after the
   matched name, so `connect(user="testuser", password="...")` and
@@ -12,6 +17,8 @@
   while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.
 - Secrets: new rule `secret.prefect-api-key` (critical) for Prefect API keys (`pnu_` followed by 36
   letters and digits).
+- Secrets: new rule `secret.openrouter-key` (critical) for OpenRouter API keys (`sk-or-v1-` followed
+  by 64 lower-case hex characters).
 - Secrets: new rule `secret.newrelic-key` (critical) for New Relic user API keys (`NRAK-` followed
   by 27 upper-case letters and digits).
 - Report: the summary line says `Scanned 1 file` and `1 package checked against OSV.dev` for a
