@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Report: the summary line now uses the singular when exactly one file or one
+  package was scanned ("Scanned 1 file in ...", "1 package checked against
+  OSV.dev"); zero and two or more stay plural.
 - Code: the Go `fmt.Sprintf` pattern in `code.sql-injection` now uses the same SQL clause keyword
   check (`SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET`, `DELETE FROM`) as the other SQL
   injection rules and also matches raw backtick query strings and escaped newlines or tabs
