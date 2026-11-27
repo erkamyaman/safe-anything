@@ -137,6 +137,8 @@ pub fn fake(name: &str) -> String {
         "pulumi-token" => ["pu", "l-", &body(40, HEX)].concat(),
         "pulumi-upper" => ["pu", "l-", &body(40, HEX).to_uppercase()].concat(),
         "sentry" => ["sntr", "yu_", &body(64, HEX)].concat(),
+        "newrelic" => ["NR", "AK-", &body(27, UPPER)].concat(),
+        "newrelic-short" => ["NR", "AK-", &body(26, UPPER)].concat(),
         "supabase" => ["sb", "p_", &body(40, HEX)].concat(),
         "grafana" => ["gl", "sa_", &body(32, MIXED), "_", &body(8, HEX)].concat(),
         "doppler" => ["dp", ".pt.", &body(43, MIXED)].concat(),

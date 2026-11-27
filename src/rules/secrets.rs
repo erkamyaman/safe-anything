@@ -431,6 +431,12 @@ pub static RULES: &[Rule] = &[
         "A Sentry user auth token is written in the file."
     ),
     secret!(
+        "secret.newrelic-key",
+        Critical,
+        r"\bNRAK-[A-Z0-9]{27}\b",
+        "A New Relic user API key is written in the file."
+    ),
+    secret!(
         "secret.supabase-token",
         Critical,
         r"\bsbp_[0-9a-f]{40}\b",
