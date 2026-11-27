@@ -433,7 +433,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.newrelic-key",
         Critical,
-        r"\bNRAK-[A-Z0-9]{27}\b",
+        r"(?:\\[nrt]|\b)(NRAK-[A-Z0-9]{27})\b",
         "A New Relic user API key is written in the file."
     ),
     secret!(
