@@ -10,6 +10,11 @@
   newlines, tabs and carriage returns (`\n`, `\t`, `\r`) inside quoted query strings
   (`db.query("SELECT id\nFROM users WHERE id = " + id)`,
   `cur.execute("SELECT id\nFROM users WHERE id = %s" % uid)`).
+- Secrets: `secret.hardcoded-password` no longer lets a placeholder-like value
+  elsewhere on the line hide a real password — the placeholder check now only
+  looks at the value right after the matched name (`connect(user="testuser",
+  password="...")` and `{"env": "none", "password": "..."}` are reported);
+  a placeholder in the password's own value stays quiet.
 - Code: the Go `fmt.Sprintf` pattern in `code.sql-injection` now uses the same SQL clause keyword
   check (`SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET`, `DELETE FROM`) as the other SQL
   injection rules and also matches raw backtick query strings and escaped newlines or tabs
