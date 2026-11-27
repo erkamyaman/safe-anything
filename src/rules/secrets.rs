@@ -440,7 +440,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.sentry-token",
         Critical,
-        r"\bsntryu_[0-9a-f]{64}\b",
+        r"(?:\\[nrt]|\b)(sntryu_[0-9a-f]{64})\b",
         "A Sentry user auth token is written in the file."
     ),
     secret!(
