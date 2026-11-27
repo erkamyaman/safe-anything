@@ -359,7 +359,7 @@ pub static RULES: &[Rule] = &[
         rb,
         concat!(
             r#"\.(?:where|find_by_sql|order|group|having|joins|select|pluck|exists\?)\(\s*"[^"]*#\{|"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*#\{"#
         ),
         None,
@@ -813,6 +813,34 @@ mod tests {
                     "unexpected code.sql-injection in {name}: {s}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn ruby_sql_injection_matches_escaped_whitespace() {
+        let f = FileInfo::new("db.rb");
+        let sqli = |s| {
+            check(&f, s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            r##"q = "SELECT id\nFROM users WHERE id = #{id}""##,
+            r##"q = "SELECT id\tFROM users WHERE id = #{id}""##,
+            r##"q = "SELECT id\r\nFROM users WHERE id = #{id}""##,
+            r##"q = "UPDATE users\nSET role = '#{role}'""##,
+            r##"q = "DELETE\nFROM sessions WHERE id = #{id}""##,
+            r##"q = "INSERT\nINTO logs VALUES ('#{msg}')""##,
+        ] {
+            assert!(sqli(s), "expected code.sql-injection for: {s}");
+        }
+        for s in [
+            r##"msg = "selected\n#{n} files""##,
+            r##"msg = "selected\n#{n} files from #{dir}""##,
+            r##"msg = "updated\n#{n} rows""##,
+            r##"q = "SELECT id\nFROM users WHERE id = ?""##,
+        ] {
+            assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
         }
     }
 }

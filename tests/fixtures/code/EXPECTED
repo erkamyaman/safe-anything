@@ -29,6 +29,7 @@ api/index.php:7 code.eval
 api/index.php:8 code.sql-injection
 api/index.php:9 code.command-injection
 api/users_controller.rb:1 code.sql-injection
+api/users_controller.rb:11 code.sql-injection
 api/users_controller.rb:3 code.command-injection
 api/users_controller.rb:4 code.unsafe-deserialization
 api/users_controller.rb:5 code.xss-raw-html
