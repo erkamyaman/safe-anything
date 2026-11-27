@@ -83,8 +83,13 @@ pub fn terminal(report: &Report, style: &Style) -> String {
     let deps = match &report.dependency_check {
         DependencyCheck::Skipped => "skipped (offline)".to_string(),
         DependencyCheck::Done => format!(
-            "{} packages checked against OSV.dev",
-            report.packages_checked
+            "{} package{} checked against OSV.dev",
+            report.packages_checked,
+            if report.packages_checked == 1 {
+                ""
+            } else {
+                "s"
+            }
         ),
         DependencyCheck::Failed(e) => format!("failed: {e}"),
     };
@@ -94,8 +99,9 @@ pub fn terminal(report: &Report, style: &Style) -> String {
         style.paint(
             "2",
             &format!(
-                "Scanned {} files in {:.2} s. Dependencies: {deps}.",
+                "Scanned {} file{} in {:.2} s. Dependencies: {deps}.",
                 thousands(report.files_scanned),
+                if report.files_scanned == 1 { "" } else { "s" },
                 report.elapsed_ms as f64 / 1000.0
             )
         )
@@ -127,4 +133,39 @@ fn thousands(n: usize) -> String {
         out.push(c);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn report_with(files_scanned: usize, packages_checked: usize) -> Report {
+        Report {
+            findings: vec![],
+            files_scanned,
+            packages_checked,
+            lockfiles_too_large: vec![],
+            elapsed_ms: 0,
+            dependency_check: DependencyCheck::Done,
+        }
+    }
+
+    #[test]
+    fn summary_line_uses_singular_for_one_file_and_one_package() {
+        let out = terminal(&report_with(1, 1), &Style { color: false });
+        assert!(out.contains("Scanned 1 file in"), "{out}");
+        assert!(out.contains("1 package checked against OSV.dev"), "{out}");
+        assert!(!out.contains("1 files"), "{out}");
+        assert!(!out.contains("1 packages"), "{out}");
+    }
+
+    #[test]
+    fn summary_line_stays_plural_for_zero_and_many() {
+        let out = terminal(&report_with(0, 0), &Style { color: false });
+        assert!(out.contains("Scanned 0 files in"), "{out}");
+        assert!(out.contains("0 packages checked against OSV.dev"), "{out}");
+        let out = terminal(&report_with(1_195, 2), &Style { color: false });
+        assert!(out.contains("Scanned 1,195 files in"), "{out}");
+        assert!(out.contains("2 packages checked against OSV.dev"), "{out}");
+    }
 }
