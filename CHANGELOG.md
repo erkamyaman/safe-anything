@@ -10,6 +10,10 @@
   newlines, tabs and carriage returns (`\n`, `\t`, `\r`) inside quoted query strings
   (`db.query("SELECT id\nFROM users WHERE id = " + id)`,
   `cur.execute("SELECT id\nFROM users WHERE id = %s" % uid)`).
+- Secrets: `secret.env-file` and `secret.env-example-value` now catch whole-word
+  `PASS` and `PWD` names such as `DB_PASS`, `MYSQL_PWD` and `PASS_FILE`;
+  `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` stay quiet, and placeholder
+  values stay quiet.
 - Code: the Go `fmt.Sprintf` pattern in `code.sql-injection` now uses the same SQL clause keyword
   check (`SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET`, `DELETE FROM`) as the other SQL
   injection rules and also matches raw backtick query strings and escaped newlines or tabs
