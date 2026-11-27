@@ -17,6 +17,7 @@ api/handler.go:11 code.sql-injection
 api/handler.go:13 code.sql-injection
 api/handler.go:14 code.sql-injection
 api/handler.go:19 code.sql-injection
+api/handler.go:20 code.sql-injection
 api/handler.go:6 code.ssrf
 api/index.php:1 code.sql-injection
 api/index.php:11 code.sql-injection

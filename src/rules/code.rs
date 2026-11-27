@@ -316,7 +316,7 @@ pub static RULES: &[Rule] = &[
         go,
         concat!(
             r#"\.(?:Query|QueryRow|Exec)(?:\(|Context\(\s*[\w.]+(?:\(\))?\s*,)\s*(?:"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"|`\s*"#,
             kw!(),
             r#"[^`]*`)\s*\+\s*[A-Za-z_]"#
@@ -681,6 +681,39 @@ mod tests {
             r#"msg := fmt.Sprintf("selected\n%d files from %s", n, dir)"#,
             r#"msg := fmt.Sprintf("inserted %d rows\ninto %s", n, table)"#,
             r#"q := fmt.Sprintf("SELECT * FROM users WHERE id = 1") + fmt.Sprintf(" -- %s", note)"#,
+        ] {
+            assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
+        }
+    }
+
+    #[test]
+    fn go_query_concat_sql_injection_matches_escaped_whitespace() {
+        let f = FileInfo::new("handler.go");
+        let sqli = |s| {
+            check(&f, s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            r#"rows, _ := db.Query("SELECT id\nFROM users WHERE id = " + id)"#,
+            r#"rows, _ := db.Query("SELECT id\tFROM users WHERE id = " + id)"#,
+            r#"rows, _ := db.Query("SELECT id\r\nFROM users WHERE id = " + id)"#,
+            r#"row := db.QueryRow("SELECT name\nFROM users WHERE id = " + id)"#,
+            r#"_, err := db.Exec("UPDATE users\nSET role = " + role)"#,
+            r#"_, err := db.Exec("DELETE\nFROM sessions WHERE id = " + id)"#,
+            r#"row := db.QueryRowContext(ctx, "SELECT name\nFROM users WHERE id = " + id)"#,
+            // A raw string has no escapes; a real line break still counts.
+            "rows, _ := db.Query(`SELECT id\nFROM users WHERE id = ` + id)",
+        ] {
+            assert!(sqli(s), "expected code.sql-injection for: {s}");
+        }
+        for s in [
+            r#"rows, _ := db.Query("selected\n" + n)"#,
+            r#"rows, _ := db.Query("selected\n" + n + " files from " + dir)"#,
+            r#"_, err := db.Exec("updated\n" + n + " rows")"#,
+            r#"rows, _ := db.Query("SELECT id\nFROM users WHERE id = ?", id)"#,
+            // In a raw string `\n` is a backslash and an `n`, not whitespace.
+            r#"rows, _ := db.Query(`SELECT id\nFROM users WHERE id = ` + id)"#,
         ] {
             assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
         }
