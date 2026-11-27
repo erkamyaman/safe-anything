@@ -1378,12 +1378,16 @@ mod tests {
             "{{\"mcpServers\":{{\"s\":{{\"env\":{{\"API_TOKEN\":\"{short_mb}\",\"DB_PASSWORD\":\"{long_mb}\"}}}}}}}}\n"
         );
         let found = check(&FileInfo::new(".mcp.json"), &prefix_leak_mcp, false);
-        assert_eq!(found.len(), 1);
-        assert!(
-            !found[0].snippet.contains(&short_mb),
-            "short multi-byte secret leaked via another secret's prefix: {}",
-            found[0].snippet
-        );
+        // `DB_PASSWORD` is a hardcoded password as well as an MCP plaintext secret,
+        // so both findings are checked for the leak.
+        assert_eq!(found.len(), 2);
+        for f in &found {
+            assert!(
+                !f.snippet.contains(&short_mb),
+                "short multi-byte secret leaked via another secret's prefix: {}",
+                f.snippet
+            );
+        }
 
         // Multi-line password assignment also masks a copy on the assignment's first line.
         let multiline_pw = format!("log(\"{pass}\"); password =\n  \"{pass}\";\n");

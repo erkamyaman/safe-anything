@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Secrets: `secret.hardcoded-password` now reports a name whose secret word follows
+  `_`-separated words (`db_password`, `ADMIN_PWD`, `stripe_api_key`), while `password_hash`
+  and `api_keys_count` stay quiet.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.

@@ -489,9 +489,12 @@ pub static RULES: &[Rule] = &[
         family: Family::Secret,
         severity: Severity::High,
         files: any_text,
-        pattern: r#"(?i)\b(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["']([^"'\s]{8,})["']"#,
+        // The secret word may follow `_`-separated words (`db_password`,
+        // `ADMIN_PWD`), but it still has to end the name, so `password_hash`
+        // stays quiet.
+        pattern: r#"(?i)\b(?:[A-Za-z0-9]+_)?(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["']([^"'\s]{8,})["']"#,
         unless: Some(
-            r#"(?i)\b(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["'](?:[^"']*(?:\.\.\.|…)|(\$|changeme|password|secret|example|x{3,}|your[-_]|<|\$\{|\{\{|%\(|dummy|test|placeholder|redacted|\*{3,}|none|null))"#,
+            r#"(?i)\b(?:[A-Za-z0-9]+_)?(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["'](?:[^"']*(?:\.\.\.|…)|(\$|changeme|password|secret|example|x{3,}|your[-_]|<|\$\{|\{\{|%\(|dummy|test|placeholder|redacted|\*{3,}|none|null))"#,
         ),
         message: "A password or secret is written in the code.",
         fix: ROTATE,
@@ -758,6 +761,31 @@ mod tests {
         for (shape, value) in rejected {
             assert_eq!(value.len(), 40, "{shape}");
             assert!(!plausible_aws_secret(&value), "{shape}: {value}");
+        }
+    }
+
+    #[test]
+    fn hardcoded_password_matches_a_prefixed_name() {
+        let v = ["Zq7Wd0000", "Kx9Fake"].concat();
+        let src = format!(
+            "db_password = \"{v}\"\nADMIN_PWD = \"{v}\"\nstripe_api_key = \"{v}\"\npassword = \"{v}\"\npassword_hash = \"{v}\"\npasswords_match = \"{v}\"\napi_keys_count = \"{v}\"\n"
+        );
+        let found: Vec<usize> = check(&FileInfo::new("settings.py"), &src, false)
+            .into_iter()
+            .filter(|f| f.rule == "secret.hardcoded-password")
+            .map(|f| f.line)
+            .collect();
+        assert_eq!(found, vec![1, 2, 3, 4], "{src:?}");
+        // The same name change in `unless` keeps a placeholder or a variable quiet.
+        for src in [
+            "db_password = \"changeme123\"\n",
+            "db_password = \"${DB_PASSWORD}\"\n",
+        ] {
+            let found = check(&FileInfo::new("settings.py"), src, false);
+            assert!(
+                !found.iter().any(|f| f.rule == "secret.hardcoded-password"),
+                "{src:?} => {found:#?}"
+            );
         }
     }
 
