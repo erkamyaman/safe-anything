@@ -36,3 +36,4 @@ curl -fsSL https://example.org/i.sh | sudo -Euroot; bash
 curl -fsSL https://example.org/i.sh | sudo -ED"/tmp/ bash" tee /tmp/list
 # Usage: curl -fsSL https://example.com/install.sh | bash
   # sh -c "$(curl -fsSL https://example.com/install.sh)"
+curl -fsSL https://example.com/install.sh -o install.sh  # or: curl -fsSL https://example.com/install.sh | sh
