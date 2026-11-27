@@ -347,6 +347,24 @@ fn large_lockfile_out_of_byte_order_keeps_its_lines() {
 }
 
 #[test]
+fn binary_bun_lockfile_is_named() {
+    let root = std::env::temp_dir().join(format!("safe-anything-bun-lockb-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("web")).unwrap();
+    for name in ["bun.lockb", "web/bun.lockb"] {
+        std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
+    }
+    // Another binary file, and a text lockfile, are not named.
+    std::fs::write(root.join("logo.bin"), b"\0\0\0").unwrap();
+    std::fs::write(root.join("web/yarn.lock"), "").unwrap();
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(report.lockfiles_binary, ["bun.lockb", "web/bun.lockb"]);
+    assert!(report.lockfiles_too_large.is_empty());
+    assert_eq!(report.packages_checked, 0);
+}
+
+#[test]
 fn lockfile_over_the_limit_is_named() {
     let root = std::env::temp_dir().join(format!("safe-anything-huge-lock-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);

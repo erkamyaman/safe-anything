@@ -120,6 +120,19 @@ pub fn terminal(report: &Report, style: &Style) -> String {
             )
         );
     }
+    if !report.lockfiles_binary.is_empty() {
+        let _ = writeln!(
+            out,
+            "{}",
+            style.paint(
+                "2",
+                &format!(
+                    "Not checked, binary lockfile: {}. Run bun install --save-text-lockfile to write bun.lock.",
+                    report.lockfiles_binary.join(", ")
+                )
+            )
+        );
+    }
     out
 }
 
@@ -147,6 +160,23 @@ mod tests {
             ..Default::default()
         };
         terminal(&report, &Style { color: false })
+    }
+
+    #[test]
+    fn binary_lockfiles_are_named_after_the_summary() {
+        let report = Report {
+            lockfiles_binary: vec!["bun.lockb".to_string(), "web/bun.lockb".to_string()],
+            dependency_check: DependencyCheck::Done,
+            ..Default::default()
+        };
+        let out = terminal(&report, &Style { color: false });
+        assert!(
+            out.contains(
+                "Not checked, binary lockfile: bun.lockb, web/bun.lockb. Run bun install --save-text-lockfile to write bun.lock."
+            ),
+            "{out}"
+        );
+        assert!(!summary(1, 1).contains("binary lockfile"));
     }
 
     #[test]

@@ -178,6 +178,9 @@ pub struct Report {
     /// Lockfiles too large to read (over `engine::MAX_LOCK_BYTES`), so their packages were not checked.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub lockfiles_too_large: Vec<String>,
+    /// Binary lockfiles (`bun.lockb`, bun before 1.2), so their packages were not checked.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub lockfiles_binary: Vec<String>,
     pub elapsed_ms: u64,
     pub dependency_check: DependencyCheck,
 }
@@ -230,6 +233,7 @@ pub fn scan(root: &Path, options: &Options) -> std::io::Result<Report> {
         files_scanned: scanned.files,
         packages_checked: scanned.packages.len(),
         lockfiles_too_large: scanned.lockfiles_too_large,
+        lockfiles_binary: scanned.lockfiles_binary,
         findings: scanned.findings,
         ..Report::default()
     };

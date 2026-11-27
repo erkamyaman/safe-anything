@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
+  (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
+  bun.lock.`). It used to be skipped without a word, which read like a clean result.
+
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.
