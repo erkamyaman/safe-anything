@@ -97,7 +97,7 @@ fn env_example(f: &FileInfo) -> bool {
 
 const ENV_SECRET_LINE: &str = concat!(
     r"(?m)^[ \t]*(?:export[ \t]+)?",
-    r"[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*",
+    r"(?:[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*|[A-Za-z0-9_]*_(?i:pass|pwd)(?:_[A-Za-z0-9_]*)?|(?i:pass|pwd)(?:_[A-Za-z0-9_]*)?)",
     r"[ \t]*=[ \t]*(?:",
     r#""([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})"[ \t]*(?:#[^\r\n]*)?"#,
     r#"|'([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})'[ \t]*(?:#[^\r\n]*)?"#,
@@ -739,6 +739,35 @@ mod tests {
         for (shape, value) in rejected {
             assert_eq!(value.len(), 40, "{shape}");
             assert!(!plausible_aws_secret(&value), "{shape}: {value}");
+        }
+    }
+
+    #[test]
+    fn env_secret_line_pass_pwd_whole_word() {
+        let s = ["Fake0000", "Value0000", "Q7mZ"].concat();
+        let (ex, ef) = ("secret.env-example-value", "secret.env-file");
+        for (name, rule, src) in [
+            (".env", ef, format!("DB_PASS={s}\n")),
+            (".env", ef, format!("MYSQL_PWD={s}\n")),
+            (".env", ef, format!("PASS_FILE={s}\n")),
+            (".env", ef, format!("SMTP_PASS={s}\n")),
+            (".env.example", ex, format!("DB_PASS={s}\n")),
+        ] {
+            let found: Vec<_> = check(&FileInfo::new(name), &src, false)
+                .into_iter()
+                .filter(|f| f.rule == rule)
+                .collect();
+            assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
+            assert_eq!(found[0].line, 1);
+        }
+        for (name, src) in [
+            (".env", format!("PASSPORT_ID={s}\n")),
+            (".env", format!("BYPASS_CACHE={s}\n")),
+            (".env", format!("COMPASS_URL={s}\n")),
+            (".env", "DB_PASS=your-pass-here\n".to_string()),
+        ] {
+            let found = check(&FileInfo::new(name), &src, false);
+            assert!(found.is_empty(), "{name} {src:?} => {found:#?}");
         }
     }
 
