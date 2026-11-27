@@ -10,3 +10,4 @@ dart/pubspec.lock:24 dependency.known-vulnerability
 yarn/yarn.lock:6 dependency.known-vulnerability
 py/poetry.lock:5 dependency.known-vulnerability
 pipenv/Pipfile.lock:22 dependency.known-vulnerability
+bun/bun.lock:20 dependency.known-vulnerability
