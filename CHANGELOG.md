@@ -4,6 +4,15 @@
 
 - Code: `code.sql-injection` now reports a Ruby query with an escaped newline, tab or carriage
   return before the next keyword (`"SELECT id\nFROM users WHERE id = #{id}"`).
+- Code: `code.sql-injection` now reports a PHP query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = $id"`), in the interpolated
+  and the concatenated form.
+- Code: `code.sql-injection` now reports a C# interpolated query with an escaped newline, tab or
+  carriage return before the next keyword (`$"SELECT Id\nFROM Users WHERE Id = {id}"`), as the
+  concatenation form already did.
+- Config: `config.remote-script` no longer reports a trailing `#` comment that shows a `| sh`
+  shortcut after a safe command (`curl ... -o install.sh # or: curl ... | sh`), while still
+  reporting `#` inside quotes or words (`https://example.com/i.sh#v1`) and comments after the pipe.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.
