@@ -11,3 +11,5 @@ $q = "SELECT * FROM t WHERE id = ?";
 $insert = "UPDATE users SET password = '$pass_new' WHERE user = 1";
 $page = file_get_contents($_GET['url']);
 $page = file_get_contents("https://api.example.com/status");
+$q2 = "SELECT id\nFROM users WHERE id = $id";
+$msg = "selected\n$n files from $dir";
