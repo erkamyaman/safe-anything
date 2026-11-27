@@ -37,3 +37,16 @@ curl -fsSL https://example.org/i.sh | sudo -ED"/tmp/ bash" tee /tmp/list
 # Usage: curl -fsSL https://example.com/install.sh | bash
   # sh -c "$(curl -fsSL https://example.com/install.sh)"
 curl -fsSL https://example.com/install.sh -o install.sh  # or: curl -fsSL https://example.com/install.sh | sh
+curl -fsSL https://example.com/install.sh | /bin/bash
+curl -fsSL https://example.com/install.sh | /usr/bin/env bash
+curl -fsSL https://example.com/install.sh | env sh
+bash <(curl -fsSL https://example.com/install.sh)
+source <(curl -fsSL https://example.com/env.sh)
+. <(wget -qO- https://example.com/env.sh)
+diff <(curl -s https://example.com/a) <(curl -s https://example.com/b)
+cat <(curl -s https://example.com/a)
+bash <(cat ./install.sh)
+curl -fsSL https://example.com/a | /usr/bin/tee a.txt
+curl -fsSL https://example.com/a | /bin/cat
+curl -fsSL https://example.com/a | env > env.txt
+# bash <(curl -fsSL https://example.com/install.sh)

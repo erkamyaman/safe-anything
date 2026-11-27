@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Config: `config.remote-script` now reports a download piped into a shell that is named by its
+  path or started through `env` (`| /bin/bash`, `| /usr/bin/env bash`, `| env sh`), including
+  `sudo /bin/bash`.
+- Config: `config.remote-script` now reports process substitution into a shell
+  (`bash <(curl ...)`, `source <(curl ...)`, `. <(wget ...)`), while `diff <(curl ...)`,
+  `cat <(curl ...)` and `bash <(cat ...)` stay quiet.
+- Config: `config.remote-script` now reports `iex (irm ...)`,
+  `Invoke-Expression (Invoke-RestMethod ...)` and
+  `iex ((New-Object System.Net.WebClient).DownloadString(...))`, while
+  `iex (Get-Content ...)` stays quiet.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.

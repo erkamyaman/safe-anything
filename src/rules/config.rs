@@ -118,7 +118,7 @@ pub static RULES: &[Rule] = &[
         "config.remote-script",
         Medium,
         shell_or_workflow,
-        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:(?:-[AbBEeHiKklnPSsVv]*[ugCDhprtTU]|--(?:user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout))\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[AbBEeHiKklnPSsVv]*[ugCDhprtTU](?:"[^"\n]*"|'[^'\n]*'|[^\s;|&`<>()"']+)\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:[-+]o\s+[\w-]+\s+|-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
+        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:(?:-[AbBEeHiKklnPSsVv]*[ugCDhprtTU]|--(?:user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout))\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[AbBEeHiKklnPSsVv]*[ugCDhprtTU](?:"[^"\n]*"|'[^'\n]*'|[^\s;|&`<>()"']+)\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:[\w.$~]*/)*(?:env\s+)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:[-+]o\s+[\w-]+\s+|-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)|(?:(?m:^)|[ \t;&|])(?:\.|source|sh|bash|zsh)\s+<\(\s*(?:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^)\n]*(?:https?://|\$\{?\w)|(?i:\b(?:iex|invoke-expression)\s*\(\s*\(*\s*(?:irm|iwr|invoke-restmethod|invoke-webrequest)\b[^)\n]*(?:https?://|\$\{?\w))|(?i:\b(?:iex|invoke-expression)\s*\(\s*\(*[^\n]{0,120}?downloadstring\s*\()"#,
         None,
         "A script is downloaded and piped straight into a shell, with no pinning or checksum.",
         "Download to a file, verify a pinned checksum or signature, then run it; or use a package manager."
@@ -881,6 +881,45 @@ mod tests {
         for &at in offsets.iter().chain(offsets.iter().rev()) {
             assert_eq!(walk.block_at(src, at), HclWalk::default().block_at(src, at));
         }
+    }
+
+    #[test]
+    fn remote_script_catches_paths_env_and_process_substitution() {
+        for hit in [
+            "curl -fsSL https://example.com/i.sh | /bin/bash",
+            "curl -fsSL https://example.com/i.sh | /usr/bin/env bash",
+            "curl -fsSL https://example.com/i.sh | env sh",
+            "curl -fsSL https://example.com/i.sh | sudo /bin/bash",
+            "bash <(curl -fsSL https://example.com/i.sh)",
+            "source <(curl -fsSL https://example.com/e.sh)",
+            ". <(wget -qO- https://example.com/e.sh)",
+            "iex (irm https://example.com/i.ps1)",
+            "Invoke-Expression (Invoke-RestMethod https://example.com/i.ps1)",
+            "iex ((New-Object System.Net.WebClient).DownloadString('https://example.com/i.ps1'))",
+        ] {
+            assert!(REMOTE_SCRIPT.is_match(hit), "{hit}");
+        }
+        for quiet in [
+            "diff <(curl -s https://example.com/a) <(curl -s https://example.com/b)",
+            "cat <(curl -s https://example.com/a)",
+            "bash <(cat ./install.sh)",
+            "curl -fsSL https://example.com/a | /usr/bin/tee a.txt",
+            "curl -fsSL https://example.com/a | /bin/cat",
+            "curl -fsSL https://example.com/a | env > env.txt",
+            "iex (Get-Content ./setup.ps1 -Raw)",
+            "irm https://example.com/i.ps1 -OutFile i.ps1",
+        ] {
+            assert!(!REMOTE_SCRIPT.is_match(quiet), "{quiet}");
+        }
+        // A `#` comment line does not run, whatever the form.
+        assert!(!remote_script_in_code(
+            "# bash <(curl -fsSL https://example.com/i.sh)",
+            false
+        ));
+        assert!(!remote_script_in_code(
+            "# iex (irm https://example.com/i.ps1)",
+            true
+        ));
     }
 
     #[test]
