@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now reports Kotlin string templates in a query
+  (`"SELECT id FROM users WHERE id = $id"`, `${id}`), in `.kt` and `.kts` files only. A positional
+  placeholder (`$1`) and an escaped `\$` are not templates and stay quiet.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.

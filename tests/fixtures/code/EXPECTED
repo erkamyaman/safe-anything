@@ -1,3 +1,5 @@
+api/Repo.kt:1 code.sql-injection
+api/Repo.kt:2 code.sql-injection
 api/UserRepo.java:1 code.sql-injection
 api/UserRepo.java:3 code.command-injection
 api/UserRepo.java:4 code.unsafe-deserialization
