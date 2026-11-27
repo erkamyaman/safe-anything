@@ -12,6 +12,8 @@
   while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.
 - Secrets: new rule `secret.prefect-api-key` (critical) for Prefect API keys (`pnu_` followed by 36
   letters and digits).
+- Secrets: new rule `secret.flyio-token` (critical) for Fly.io access tokens (`fo1_` followed by 43
+  letters, digits, `_` or `-`).
 - Report: the summary line says `Scanned 1 file` and `1 package checked against OSV.dev` for a
   count of one; other counts stay plural.
 - Code: the JavaScript and Python patterns in `code.sql-injection` now also match escaped

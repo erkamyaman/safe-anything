@@ -155,6 +155,8 @@ pub fn fake(name: &str) -> String {
         "heroku" => ["HR", "KU-AA", &body(57, MIXED), "-"].concat(),
         "heroku-short" => ["HR", "KU-AA", &body(57, MIXED)].concat(),
         "heroku-no-aa" => ["HR", "KU-", &body(58, MIXED)].concat(),
+        "flyio" => ["fo", "1_", &body(42, MIXED), "-"].concat(),
+        "flyio-short" => ["fo", "1_", &body(41, MIXED), "-"].concat(),
         other => panic!("no fake value named {other}"),
     }
 }
