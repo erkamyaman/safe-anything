@@ -759,6 +759,7 @@ mod tests {
         );
         for src in [
             "password=\"changeme12345\"\n".to_string(),
+            "password=\"test1234\"\n".to_string(),
             "password=\"your-password-here\"\n".to_string(),
             "password=\"<enter-password>\"\n".to_string(),
         ] {
