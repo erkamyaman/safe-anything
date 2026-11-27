@@ -262,8 +262,11 @@ pub static RULES: &[Rule] = &[
         "code.sql-injection",
         High,
         js,
+        // A template literal right after an identifier is a tagged template (sql`...`,
+        // Prisma.sql`...`, sql<Row[]>`...`): the tag gets the values apart from the text and
+        // binds them, so only an untagged literal or a raw tag (String.raw, sql.raw) counts.
         concat!(
-            r#"`\s*"#,
+            r#"(?:(?m:^)|[^\w$>\n]|=>|\.(?:raw|unsafe))`\s*"#,
             kw!(),
             r#"[^`]*\$\{|["']\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
@@ -326,7 +329,11 @@ pub static RULES: &[Rule] = &[
         "code.sql-injection",
         High,
         jvm,
-        concat!(r#""\s*"#, kw!(), r#"[^"]*"\s*\+\s*[A-Za-z_]"#),
+        concat!(
+            r#""\s*"#,
+            kw!(".", r"(?:\s|\\[nrt])"),
+            r#"[^"]*"\s*\+\s*[A-Za-z_]"#
+        ),
         None,
         SQLI_MSG,
         SQLI_FIX
@@ -365,7 +372,7 @@ pub static RULES: &[Rule] = &[
         cs,
         concat!(
             r#""\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"\s*\+\s*[A-Za-z_]|\$@?"\s*"#,
             kw!(),
             r#"[^"]*\{"#
@@ -680,6 +687,50 @@ mod tests {
     }
 
     #[test]
+    fn js_sql_injection_skips_tagged_templates() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for name in ["db.js", "db.ts"] {
+            for s in [
+                "const rows = await sql`SELECT * FROM users WHERE id = ${id}`;",
+                "const rows = await db.execute(sql`SELECT * FROM users WHERE id = ${id}`);",
+                "const rows = await sql<User[]>`SELECT * FROM users WHERE id = ${id}`;",
+                "const rows = await prisma.$queryRaw`SELECT * FROM users WHERE id = ${id}`;",
+                "const q = Prisma.sql`SELECT * FROM users WHERE id = ${id}`;",
+                "const q = SQL`UPDATE users SET name = ${name} WHERE id = ${id}`;",
+            ] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+            for s in [
+                "db.query(`SELECT * FROM users WHERE id = ${id}`);",
+                "const q = `SELECT * FROM users WHERE id = ${id}`;",
+                "const q =`SELECT * FROM users WHERE id = ${id}`;",
+                "const f = (id) =>`SELECT * FROM users WHERE id = ${id}`;",
+                "`DELETE FROM sessions WHERE id = ${id}`",
+                "db.query(String.raw`SELECT * FROM users WHERE id = ${id}`);",
+                "db.execute(sql.raw`SELECT * FROM users WHERE id = ${id}`);",
+                "await sql.unsafe`SELECT * FROM users WHERE id = ${id}`;",
+            ] {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+        }
+        // An untagged literal on its own line is reported on that line, not the one above.
+        let src = "db.query(\n`SELECT * FROM users WHERE id = ${id}`\n);\n";
+        let lines: Vec<_> = check(&FileInfo::new("db.js"), src, false)
+            .iter()
+            .filter(|x| x.rule == "code.sql-injection")
+            .map(|x| x.line)
+            .collect();
+        assert_eq!(lines, vec![2]);
+    }
+
+    #[test]
     fn js_and_python_sql_injection_match_escaped_whitespace() {
         let js_file = FileInfo::new("app.js");
         let py_file = FileInfo::new("views.py");
@@ -731,6 +782,37 @@ mod tests {
                 !sqli(&py_file, s),
                 "unexpected Python code.sql-injection for: {s}"
             );
+        }
+    }
+
+    #[test]
+    fn jvm_and_csharp_sql_injection_match_escaped_whitespace() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for name in ["UserRepo.java", "UserRepo.kt", "Users.cs"] {
+            for s in [
+                r#"q = "SELECT id\nFROM users WHERE id = " + id;"#,
+                r#"q = "SELECT id\tFROM users WHERE id = " + id;"#,
+                r#"q = "SELECT id\r\nFROM users WHERE id = " + id;"#,
+                r#"q = "UPDATE users\nSET role = " + role;"#,
+                r#"q = "DELETE\nFROM sessions WHERE id = " + id;"#,
+                r#"q = "INSERT\nINTO logs VALUES (" + msg;"#,
+            ] {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+            for s in [
+                r#"msg = "selected\n" + n + " files";"#,
+                r#"msg = "selected\n" + n + " files from " + dir;"#,
+                r#"msg = "inserted\n" + n + " rows";"#,
+            ] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
         }
     }
 }
