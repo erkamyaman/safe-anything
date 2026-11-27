@@ -21,6 +21,7 @@ api/handler.go:6 code.ssrf
 api/index.php:1 code.sql-injection
 api/index.php:11 code.sql-injection
 api/index.php:12 code.ssrf
+api/index.php:14 code.sql-injection
 api/index.php:2 code.command-injection
 api/index.php:3 code.file-inclusion
 api/index.php:4 code.unsafe-deserialization

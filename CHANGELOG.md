@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now reports a PHP query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = $id"`), in the interpolated
+  and the concatenated form.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.
