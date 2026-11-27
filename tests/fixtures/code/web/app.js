@@ -35,3 +35,6 @@ res.redirect(301, req.query.next);
 res.redirect(301, '/home');
 db.query("SELECT id\nFROM users WHERE id = " + id);
 const msg = "selected\n" + count + " files";
+db.query(String.raw`SELECT * FROM users WHERE id = ${id}`);
+const rows = await sql`SELECT * FROM users WHERE id = ${id}`;
+const typed = await sql<User[]>`SELECT * FROM users WHERE id = ${id}`;

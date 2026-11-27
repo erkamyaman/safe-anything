@@ -275,8 +275,9 @@ fn deps() {
     // as a dependency): the `my-app@workspace:.` entry in web/yarn.lock, and the
     // gems in the `GIT` and `PATH` sections of rb/Gemfile.lock, and the editable
     // git checkout of `requests` in pipenv/Pipfile.lock. Only the gems in its two
-    // `GEM` sections count.
-    check_with("deps", options, Some(27));
+    // `GEM` sections count. In bun/bun.lock the `ui@workspace:` and `debug@github:`
+    // entries are skipped the same way.
+    check_with("deps", options, Some(31));
 }
 
 /// Writes a package-lock.json listing `n` packages, padded with a long

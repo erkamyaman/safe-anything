@@ -94,6 +94,7 @@ fn parser(name: &str) -> Option<Parser> {
         "package-lock.json" | "npm-shrinkwrap.json" => npm_lock,
         "yarn.lock" => yarn_lock,
         "pnpm-lock.yaml" => pnpm_lock,
+        "bun.lock" => bun_lock,
         "cargo.lock" => |f, t| toml_packages(f, t, "crates.io", true),
         "poetry.lock" | "uv.lock" | "pdm.lock" => |f, t| toml_packages(f, t, "PyPI", false),
         "go.mod" => go_mod,
@@ -150,6 +151,111 @@ fn npm_lock(file: &FileInfo, text: &str) -> Vec<Package> {
             if let Some(version) = p.get("version").and_then(Value::as_str) {
                 let at = find_from(text, &mut cursor, &format!("\"{name}\""));
                 out.push(pkg("npm", name, version, file, lines.line_of(at)));
+            }
+        }
+    }
+    out
+}
+
+#[derive(Deserialize)]
+struct BunLock {
+    #[serde(default, deserialize_with = "ordered")]
+    packages: Option<Ordered>,
+}
+
+/// bun's text lockfile (bun 1.2 and later). It is JSONC: bun writes a comma after the
+/// last entry of every object and array. Each `packages` value is an array whose first
+/// item is `name@version` for a registry package, or `name@workspace:...`,
+/// `name@github:...`, `name@file:...` and the like for one that is not.
+fn bun_lock(file: &FileInfo, text: &str) -> Vec<Package> {
+    let Ok(json) = serde_json::from_str::<BunLock>(&jsonc_to_json(text)) else {
+        return Vec::new();
+    };
+    let lines = Text::new(text);
+    let mut out = Vec::new();
+    let mut cursor = 0;
+    for (key, entry) in json.packages.iter().flat_map(|Ordered(p)| p) {
+        let Some(spec) = entry.get(0).and_then(Value::as_str) else {
+            continue;
+        };
+        // The name can start with `@` (a scope), so split at the last one.
+        let Some((name, version)) = spec.rsplit_once('@') else {
+            continue;
+        };
+        if name.is_empty()
+            || !version.starts_with(|c: char| c.is_ascii_digit())
+            || version.contains([':', '/'])
+        {
+            continue;
+        }
+        // The workspaces section above lists the same names as `"name": "range"`, so
+        // look for the key followed by its array.
+        let needle = format!("\"{key}\": [");
+        let at = if text[cursor..].contains(&needle) {
+            find_from(text, &mut cursor, &needle)
+        } else {
+            find_from(text, &mut cursor, &format!("\"{key}\""))
+        };
+        out.push(pkg("npm", name, version, file, lines.line_of(at)));
+    }
+    out
+}
+
+/// Turns JSONC into JSON: drops `//` and `/* */` comments and the comma before a
+/// closing `}` or `]`. Line breaks are kept.
+fn jsonc_to_json(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut chars = src.chars().peekable();
+    let mut in_str = false;
+    // Where the last comma sits in `out`, while only whitespace has followed it.
+    let mut comma: Option<usize> = None;
+    while let Some(c) = chars.next() {
+        if in_str {
+            out.push(c);
+            if c == '\\' {
+                out.extend(chars.next());
+            } else if c == '"' {
+                in_str = false;
+            }
+            continue;
+        }
+        match c {
+            '/' if chars.peek() == Some(&'/') => {
+                for n in chars.by_ref() {
+                    if n == '\n' {
+                        out.push('\n');
+                        break;
+                    }
+                }
+            }
+            '/' if chars.peek() == Some(&'*') => {
+                chars.next();
+                let mut prev = ' ';
+                for n in chars.by_ref() {
+                    if n == '\n' {
+                        out.push('\n');
+                    }
+                    if prev == '*' && n == '/' {
+                        break;
+                    }
+                    prev = n;
+                }
+            }
+            ',' => {
+                comma = Some(out.len());
+                out.push(c);
+            }
+            '}' | ']' => {
+                if let Some(at) = comma.take() {
+                    out.replace_range(at..=at, " ");
+                }
+                out.push(c);
+            }
+            c if c.is_whitespace() => out.push(c),
+            c => {
+                comma = None;
+                in_str = c == '"';
+                out.push(c);
             }
         }
     }
@@ -688,6 +794,63 @@ mod tests {
                 [("left-pad".to_string(), 2)],
                 "packages: {packages}"
             );
+        }
+    }
+
+    fn bun(text: &str) -> Vec<(String, String, usize)> {
+        parse_lockfile(&FileInfo::new("bun.lock"), text)
+            .into_iter()
+            .map(|p| (p.name, p.version, p.line))
+            .collect()
+    }
+
+    #[test]
+    fn bun_lock_reads_registry_packages_and_skips_the_rest() {
+        let text = r#"{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": { "name": "app", "dependencies": { "lodash": "^4.17.20", }, },
+  },
+  "packages": {
+    "@types/node": ["@types/node@22.10.1", "", {}, "sha512-x"],
+    "lodash": ["lodash@4.17.20", "", {}, "sha512-x"],
+    "app": ["app@workspace:."],
+    "debug": ["debug@github:debug-js/debug#1a2b3c4", {}, "x"],
+    "local": ["local@file:../local", {}],
+    "tar": ["tar@https://example.com/tar-1.0.0.tgz", {}, "x"],
+    "alias": ["left-pad@1.3.0", "", {}, "sha512-x"],
+    "ui/lodash": ["lodash@3.10.1", "", {}, "sha512-x"],
+  }
+}"#;
+        assert_eq!(
+            bun(text),
+            [
+                ("@types/node".to_string(), "22.10.1".to_string(), 7),
+                ("lodash".to_string(), "4.17.20".to_string(), 8),
+                ("left-pad".to_string(), "1.3.0".to_string(), 13),
+                ("lodash".to_string(), "3.10.1".to_string(), 14),
+            ]
+        );
+    }
+
+    #[test]
+    fn bun_lock_reads_comments_and_one_line_files() {
+        let text = "// written by bun\n{\"packages\": { /* one */ \"ms\": [\"ms@2.1.3\", \"\", {}, \"x\"] }}";
+        assert_eq!(bun(text), [("ms".to_string(), "2.1.3".to_string(), 2)]);
+        // A `,}` or `//` inside a string is text, not syntax.
+        let text = r#"{"packages": {"a,}": ["a@1.0.0", "http://x/,]", {}, "x"],}}"#;
+        assert_eq!(bun(text), [("a".to_string(), "1.0.0".to_string(), 1)]);
+    }
+
+    #[test]
+    fn bun_lock_that_is_not_an_object_of_arrays_gives_nothing() {
+        for text in [
+            "",
+            "not json",
+            "{\"packages\": []}",
+            "{\"packages\": {\"a\": \"a@1.0.0\", \"b\": [], \"c\": [1], \"d\": [\"no-version\"]}}",
+        ] {
+            assert_eq!(bun(text), [], "{text}");
         }
     }
 

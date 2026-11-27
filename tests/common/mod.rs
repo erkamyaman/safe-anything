@@ -140,6 +140,8 @@ pub fn fake(name: &str) -> String {
         "pulumi-token" => ["pu", "l-", &body(40, HEX)].concat(),
         "pulumi-upper" => ["pu", "l-", &body(40, HEX).to_uppercase()].concat(),
         "sentry" => ["sntr", "yu_", &body(64, HEX)].concat(),
+        "newrelic" => ["NR", "AK-", &body(27, UPPER)].concat(),
+        "newrelic-short" => ["NR", "AK-", &body(26, UPPER)].concat(),
         "supabase" => ["sb", "p_", &body(40, HEX)].concat(),
         "grafana" => ["gl", "sa_", &body(32, MIXED), "_", &body(8, HEX)].concat(),
         "doppler" => ["dp", ".pt.", &body(43, MIXED)].concat(),
@@ -158,6 +160,8 @@ pub fn fake(name: &str) -> String {
         "heroku" => ["HR", "KU-AA", &body(57, MIXED), "-"].concat(),
         "heroku-short" => ["HR", "KU-AA", &body(57, MIXED)].concat(),
         "heroku-no-aa" => ["HR", "KU-", &body(58, MIXED)].concat(),
+        "flyio" => ["fo", "1_", &body(42, MIXED), "-"].concat(),
+        "flyio-short" => ["fo", "1_", &body(41, MIXED), "-"].concat(),
         other => panic!("no fake value named {other}"),
     }
 }
