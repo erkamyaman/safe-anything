@@ -472,7 +472,7 @@ pub static RULES: &[Rule] = &[
         files: any_text,
         pattern: r#"(?i)\b(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["']([^"'\s]{8,})["']"#,
         unless: Some(
-            r#"(?i)[:=]\s*["'][^"']*(?:\.\.\.|…)|[:=]\s*["'](\$|changeme|password|secret|example|x{3,}|your[-_]|<|\$\{|\{\{|%\(|dummy|test|placeholder|redacted|\*{3,}|none|null)"#,
+            r#"(?i)\b(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["'](?:[^"']*(?:\.\.\.|…)|(\$|changeme|password|secret|example|x{3,}|your[-_]|<|\$\{|\{\{|%\(|dummy|test|placeholder|redacted|\*{3,}|none|null))"#,
         ),
         message: "A password or secret is written in the code.",
         fix: ROTATE,
@@ -739,6 +739,31 @@ mod tests {
         for (shape, value) in rejected {
             assert_eq!(value.len(), 40, "{shape}");
             assert!(!plausible_aws_secret(&value), "{shape}: {value}");
+        }
+    }
+
+    #[test]
+    fn hardcoded_password_placeholder_only_counts_in_its_own_value() {
+        let v = ["Zq7Wd0000", "Kx9Fake"].concat();
+        let src = format!(
+            "connect(user=\"testuser\", password=\"{v}\")\nconnect(user=\"admin\", password=\"{v}\")\ncfg = {{\"env\": \"none\", \"password\": \"{v}\"}}\n"
+        );
+        let found: Vec<_> = check(&FileInfo::new("app.py"), &src, false)
+            .into_iter()
+            .filter(|f| f.rule == "secret.hardcoded-password")
+            .collect();
+        assert_eq!(found.len(), 3, "{src:?} => {found:#?}");
+        assert_eq!(
+            found.iter().map(|f| f.line).collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        for src in [
+            "password=\"changeme12345\"\n".to_string(),
+            "password=\"your-password-here\"\n".to_string(),
+            "password=\"<enter-password>\"\n".to_string(),
+        ] {
+            let found = check(&FileInfo::new("app.py"), &src, false);
+            assert!(found.is_empty(), "{src:?} => {found:#?}");
         }
     }
 
