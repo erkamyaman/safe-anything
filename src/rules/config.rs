@@ -118,7 +118,7 @@ pub static RULES: &[Rule] = &[
         "config.remote-script",
         Medium,
         shell_or_workflow,
-        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:(?:-[AbBEeHiKklnPSsVv]*[ugCDhprtTU]|--(?:user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout))\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[AbBEeHiKklnPSsVv]*[ugCDhprtTU](?:"[^"\n]*"|'[^'\n]*'|[^\s;|&`<>()"']+)\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:[-+]o\s+[\w-]+\s+|-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)"#,
+        r#"\b(?i:curl|wget|iwr|irm|invoke-webrequest|invoke-restmethod)\b[^|\n]*?(?:https?://|\$\{?\w)[^|\n]*\|\s*(?:sudo\s+(?:(?:-[AbBEeHiKklnPSsVv]*[ugCDhprtTU]|--(?:user|group|chdir|host|prompt|role|type|other-user|close-from|command-timeout))\s+(?:"[^"\n]*"|'[^'\n]*'|[\w.$/~][\w.${}/~-]*)\s+|-[AbBEeHiKklnPSsVv]*[ugCDhprtTU](?:"[^"\n]*"|'[^'\n]*'|[^\s;|&`<>()"']+)\s+|-[AbBEeHiKklnPSsVv]+\s+|--[\w-]+=\S*\s+|--(?:preserve-env|login|shell|non-interactive|background|stdin|set-home|preserve-groups|askpass|bell|reset-timestamp|remove-timestamp)\s+)*(?:--\s+)?)?(?:env\s+|(?:/usr/local/bin/|/usr/bin/|/bin/)(?:env\s+)?)?(?:sh|bash|zsh|python3?|(?i:iex|invoke-expression))\b|\b(?:ba|z|da|k)?sh\s+(?:[-+]o\s+[\w-]+\s+|-[A-Za-z]+\s+)*?-[A-Za-z]*c[A-Za-z]*\s+\\?["']?(?:\$\(|`)\s*(?:curl|wget)\b(?:[^()`\n]|\([^()`\n]*\))*?(?:https?://|\$\{?\w)|(?:\b(?:sh|bash|zsh|source)|\.)\s+<\(\s*(?i:curl|wget)\b[^()\n]*?(?:https?://|\$\{?\w)|\b(?i:iex|invoke-expression)\s*\(\s*(?:(?i:irm|iwr|invoke-restmethod|invoke-webrequest)\b[^()\n]*?(?:https?://|\$\{?\w)|(?:\(\s*[\w.$\s-]*?\)\s*)?[\w.$\s-]*?(?i:\.downloadstring)\s*\(\s*['"]?[^'")\n]*?(?:https?://|\$\{?\w))"#,
         None,
         "A script is downloaded and piped straight into a shell, with no pinning or checksum.",
         "Download to a file, verify a pinned checksum or signature, then run it; or use a package manager."
@@ -976,6 +976,59 @@ mod tests {
                     "          Write-Host \"a`\" # text\"; irm https://example.com/i.ps1 | iex\n",
                 ),
                 vec![5, 8],
+            ),
+        ] {
+            let lines: Vec<usize> = crate::rules::check(&FileInfo::new(path), src, true)
+                .into_iter()
+                .filter(|f| f.rule == "config.remote-script")
+                .map(|f| f.line)
+                .collect();
+            assert_eq!(lines, want, "{path}");
+        }
+    }
+
+    /// The shell named by its path or through `env` after the pipe, a download run through
+    /// process substitution, and PowerShell download-and-run as an `iex` argument.
+    #[test]
+    fn remote_script_reports_path_env_procsub_and_iex_argument_forms() {
+        for (path, src, want) in [
+            (
+                "i.sh",
+                concat!(
+                    "# bash <(curl -fsSL https://example.com/install.sh)\n",
+                    "diff <(curl -s https://example.com/a) <(curl -s https://example.com/b)\n",
+                    "cat <(curl -s https://example.com/a)\n",
+                    "bash <(cat ./install.sh)\n",
+                    "bash <(curl -fsSL https://example.com/install.sh)\n",
+                    "source <(curl -fsSL https://example.com/env.sh)\n",
+                    ". <(wget -qO- https://example.com/env.sh)\n",
+                    "zsh <(curl -fsSL https://example.com/install.sh)\n",
+                    "bash <(curl -fsSL \"$URL\")\n",
+                    "curl -fsSL https://example.com/install.sh | /bin/bash\n",
+                    "curl -fsSL https://example.com/install.sh | /usr/bin/env bash\n",
+                    "curl -fsSL https://example.com/install.sh | env sh\n",
+                    "curl -fsSL https://example.com/install.sh | sudo /bin/bash\n",
+                    "curl -fsSL https://example.com/install.sh | sudo -u root /bin/bash\n",
+                    "curl -fsSL https://example.com/a | /usr/bin/tee a.txt\n",
+                    "curl -fsSL https://example.com/a | /bin/cat\n",
+                    "curl -fsSL https://example.com/a | env > env.txt\n",
+                ),
+                vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            ),
+            (
+                "i.ps1",
+                concat!(
+                    "# iex (irm https://example.com/install.ps1)\n",
+                    "iex (Get-Content ./setup.ps1 -Raw)\n",
+                    "irm https://example.com/install.ps1 -OutFile install.ps1\n",
+                    "iex (irm https://example.com/install.ps1)\n",
+                    "Invoke-Expression (Invoke-RestMethod https://example.com/install.ps1)\n",
+                    "IEX (IWR $env:URL)\n",
+                    "iex ((New-Object System.Net.WebClient).DownloadString('https://example.com/install.ps1'))\n",
+                    "iex ((New-Object Net.WebClient).DownloadString($url))\n",
+                    "iex ($client.DownloadString(\"https://example.com/install.ps1\"))\n",
+                ),
+                vec![4, 5, 6, 7, 8, 9],
             ),
         ] {
             let lines: Vec<usize> = crate::rules::check(&FileInfo::new(path), src, true)

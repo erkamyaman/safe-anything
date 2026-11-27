@@ -5,3 +5,10 @@ irm https://example.com/install.ps1 | iex
 Invoke-RestMethod -Uri https://example.com/install.ps1 | Invoke-Expression
 CURL -UseBasicParsing https://example.org/i.ps1 | IEX
 # Usage: irm https://example.com/install.ps1 | iex
+iex (irm https://example.com/install.ps1)
+Invoke-Expression (Invoke-RestMethod https://example.com/install.ps1)
+iex ((New-Object System.Net.WebClient).DownloadString('https://example.com/install.ps1'))
+iex ((New-Object Net.WebClient).DownloadString($url))
+iex (irm $url)
+iex (Get-Content ./setup.ps1 -Raw)
+# iex (irm https://example.com/install.ps1)

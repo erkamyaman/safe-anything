@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Config: `config.remote-script` also reports a shell named by its path or started through `env`
+  after the pipe (`curl ... | /bin/bash`, `| /usr/bin/env bash`, `| env sh`, `| sudo /bin/bash`),
+  while `| /usr/bin/tee a.txt`, `| /bin/cat` and `| env > env.txt` stay quiet.
+- Config: `config.remote-script` also reports a download run through process substitution
+  (`bash <(curl ...)`, `source <(curl ...)`, `. <(wget -qO- ...)`), while
+  `diff <(curl ...) <(curl ...)`, `cat <(curl ...)` and `bash <(cat ./install.sh)` stay quiet.
+- Config: `config.remote-script` also reports PowerShell download-and-run passed to `iex` as an
+  argument (`iex (irm ...)`, `Invoke-Expression (Invoke-RestMethod ...)`,
+  `iex ((New-Object System.Net.WebClient).DownloadString('...'))`), while
+  `iex (Get-Content ./setup.ps1 -Raw)` and `irm ... -OutFile install.ps1` stay quiet.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.

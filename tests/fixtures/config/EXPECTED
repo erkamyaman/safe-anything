@@ -65,3 +65,16 @@ nginx.conf:2 config.nginx-autoindex
 nginx.conf:3 config.weak-tls-version
 .github/workflows/ci.yml:34 config.gha-script-injection
 .github/workflows/ci.yml:42 config.gha-script-injection
+install.sh:40 config.remote-script
+install.sh:41 config.remote-script
+install.sh:42 config.remote-script
+install.sh:43 config.remote-script
+install.sh:47 config.remote-script
+install.sh:48 config.remote-script
+install.sh:49 config.remote-script
+install.sh:50 config.remote-script
+install.ps1:8 config.remote-script
+install.ps1:9 config.remote-script
+install.ps1:10 config.remote-script
+install.ps1:11 config.remote-script
+install.ps1:12 config.remote-script
