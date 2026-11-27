@@ -88,3 +88,4 @@ web/login.spec.ts:3 secret.aws-access-key
 web/page.vue:1 code.xss-v-html
 web/app.js:34 code.open-redirect
 web/app.js:36 code.sql-injection
+web/app.js:38 code.sql-injection

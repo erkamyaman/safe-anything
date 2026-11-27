@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` no longer reports JavaScript and TypeScript tagged templates
+  (``sql`SELECT * FROM users WHERE id = ${id}` ``, `Prisma.sql`, `prisma.$queryRaw`,
+  ``sql<Row[]>`...` ``). The tag receives the values apart from the query text and binds them.
+  An untagged template literal and a raw tag (`String.raw`, `sql.raw`, `sql.unsafe`) are still
+  reported.
 - Secrets: `secret.hardcoded-password` no longer lets a placeholder-like value elsewhere on the
   line hide a real password. The placeholder check now only looks at the value right after the
   matched name, so `connect(user="testuser", password="...")` and

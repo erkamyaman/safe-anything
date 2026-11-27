@@ -262,8 +262,11 @@ pub static RULES: &[Rule] = &[
         "code.sql-injection",
         High,
         js,
+        // A template literal right after an identifier is a tagged template (sql`...`,
+        // Prisma.sql`...`, sql<Row[]>`...`): the tag gets the values apart from the text and
+        // binds them, so only an untagged literal or a raw tag (String.raw, sql.raw) counts.
         concat!(
-            r#"`\s*"#,
+            r#"(?:(?m:^)|[^\w$>\n]|=>|\.(?:raw|unsafe))`\s*"#,
             kw!(),
             r#"[^`]*\$\{|["']\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
@@ -677,6 +680,50 @@ mod tests {
         ] {
             assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
         }
+    }
+
+    #[test]
+    fn js_sql_injection_skips_tagged_templates() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for name in ["db.js", "db.ts"] {
+            for s in [
+                "const rows = await sql`SELECT * FROM users WHERE id = ${id}`;",
+                "const rows = await db.execute(sql`SELECT * FROM users WHERE id = ${id}`);",
+                "const rows = await sql<User[]>`SELECT * FROM users WHERE id = ${id}`;",
+                "const rows = await prisma.$queryRaw`SELECT * FROM users WHERE id = ${id}`;",
+                "const q = Prisma.sql`SELECT * FROM users WHERE id = ${id}`;",
+                "const q = SQL`UPDATE users SET name = ${name} WHERE id = ${id}`;",
+            ] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+            for s in [
+                "db.query(`SELECT * FROM users WHERE id = ${id}`);",
+                "const q = `SELECT * FROM users WHERE id = ${id}`;",
+                "const q =`SELECT * FROM users WHERE id = ${id}`;",
+                "const f = (id) =>`SELECT * FROM users WHERE id = ${id}`;",
+                "`DELETE FROM sessions WHERE id = ${id}`",
+                "db.query(String.raw`SELECT * FROM users WHERE id = ${id}`);",
+                "db.execute(sql.raw`SELECT * FROM users WHERE id = ${id}`);",
+                "await sql.unsafe`SELECT * FROM users WHERE id = ${id}`;",
+            ] {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+        }
+        // An untagged literal on its own line is reported on that line, not the one above.
+        let src = "db.query(\n`SELECT * FROM users WHERE id = ${id}`\n);\n";
+        let lines: Vec<_> = check(&FileInfo::new("db.js"), src, false)
+            .iter()
+            .filter(|x| x.rule == "code.sql-injection")
+            .map(|x| x.line)
+            .collect();
+        assert_eq!(lines, vec![2]);
     }
 
     #[test]
