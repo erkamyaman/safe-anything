@@ -15,6 +15,9 @@ fn go(f: &FileInfo) -> bool {
 fn jvm(f: &FileInfo) -> bool {
     f.ext_in(&["java", "kt", "scala", "groovy"])
 }
+fn kotlin(f: &FileInfo) -> bool {
+    f.ext_in(&["kt", "kts"])
+}
 fn php(f: &FileInfo) -> bool {
     f.ext_in(&["php", "phtml"])
 }
@@ -316,7 +319,7 @@ pub static RULES: &[Rule] = &[
         go,
         concat!(
             r#"\.(?:Query|QueryRow|Exec)(?:\(|Context\(\s*[\w.]+(?:\(\))?\s*,)\s*(?:"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"|`\s*"#,
             kw!(),
             r#"[^`]*`)\s*\+\s*[A-Za-z_]"#
@@ -338,15 +341,30 @@ pub static RULES: &[Rule] = &[
         SQLI_MSG,
         SQLI_FIX
     ),
+    // Kotlin string templates (`$id`, `${id}`). Kotlin files only: in Java a
+    // `$` inside a string is just a character. An escaped `\$` is skipped.
+    rule!(
+        "code.sql-injection",
+        High,
+        kotlin,
+        concat!(
+            r#""\s*"#,
+            kw!(".", r"(?:\s|\\[nrt])"),
+            r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
+        ),
+        None,
+        SQLI_MSG,
+        SQLI_FIX
+    ),
     rule!(
         "code.sql-injection",
         High,
         php,
         concat!(
             r#"["']\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"']*["']\s*\.\s*\$|"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*\$[A-Za-z_{]"#
         ),
         None,
@@ -359,7 +377,7 @@ pub static RULES: &[Rule] = &[
         rb,
         concat!(
             r#"\.(?:where|find_by_sql|order|group|having|joins|select|pluck|exists\?)\(\s*"[^"]*#\{|"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*#\{"#
         ),
         None,
@@ -374,7 +392,7 @@ pub static RULES: &[Rule] = &[
             r#""\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"\s*\+\s*[A-Za-z_]|\$@?"\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*\{"#
         ),
         None,
@@ -687,6 +705,39 @@ mod tests {
     }
 
     #[test]
+    fn go_query_concat_sql_injection_matches_escaped_whitespace() {
+        let f = FileInfo::new("handler.go");
+        let sqli = |s| {
+            check(&f, s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            r#"rows, _ := db.Query("SELECT id\nFROM users WHERE id = " + id)"#,
+            r#"rows, _ := db.Query("SELECT id\tFROM users WHERE id = " + id)"#,
+            r#"rows, _ := db.Query("SELECT id\r\nFROM users WHERE id = " + id)"#,
+            r#"row := db.QueryRow("SELECT name\nFROM users WHERE id = " + id)"#,
+            r#"_, err := db.Exec("UPDATE users\nSET role = " + role)"#,
+            r#"_, err := db.Exec("DELETE\nFROM sessions WHERE id = " + id)"#,
+            r#"row := db.QueryRowContext(ctx, "SELECT name\nFROM users WHERE id = " + id)"#,
+            // A raw string has no escapes; a real line break still counts.
+            "rows, _ := db.Query(`SELECT id\nFROM users WHERE id = ` + id)",
+        ] {
+            assert!(sqli(s), "expected code.sql-injection for: {s}");
+        }
+        for s in [
+            r#"rows, _ := db.Query("selected\n" + n)"#,
+            r#"rows, _ := db.Query("selected\n" + n + " files from " + dir)"#,
+            r#"_, err := db.Exec("updated\n" + n + " rows")"#,
+            r#"rows, _ := db.Query("SELECT id\nFROM users WHERE id = ?", id)"#,
+            // In a raw string `\n` is a backslash and an `n`, not whitespace.
+            r#"rows, _ := db.Query(`SELECT id\nFROM users WHERE id = ` + id)"#,
+        ] {
+            assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
+        }
+    }
+
+    #[test]
     fn js_sql_injection_skips_tagged_templates() {
         let sqli = |name: &str, s: &str| {
             check(&FileInfo::new(name), s, false)
@@ -786,6 +837,56 @@ mod tests {
     }
 
     #[test]
+    fn kotlin_sql_injection_matches_string_templates() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        let templates = [
+            r#"val q = "SELECT id FROM users WHERE id = $id""#,
+            r#"val q = "SELECT id FROM users WHERE id = ${id}""#,
+            r#"val q = "SELECT id FROM users WHERE name = '${user.name}'""#,
+            r#"val q = "SELECT id\nFROM users WHERE id = $id""#,
+            r#"val q = "UPDATE users SET role = '$role' WHERE id = 1""#,
+            r#"val q = "DELETE FROM sessions WHERE id = $id""#,
+            r#"val q = "INSERT INTO logs VALUES ('$msg')""#,
+            // A positional placeholder first, then a template.
+            r#"val q = "SELECT id FROM users WHERE a = $1 AND b = $name""#,
+            // A raw string.
+            r#"val q = """SELECT id FROM users WHERE id = $id""""#,
+        ];
+        for name in ["Repo.kt", "build.gradle.kts"] {
+            for s in templates {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+            for s in [
+                r#"val msg = "Selected $n users from the list""#,
+                r#"val msg = "updated $n rows""#,
+                r#"val q = "SELECT id FROM users WHERE id = ?""#,
+                r#"val q = "SELECT id FROM users WHERE id = $1""#,
+                r#"val q = "SELECT id FROM prices WHERE currency = '\$'""#,
+                r#"val q = "SELECT id FROM users WHERE name = '\$name'""#,
+                r#"val q = "SELECT id FROM users"; val label = "$name""#,
+            ] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+        }
+        // In Java, Scala and Groovy sources the rule does not run.
+        for name in ["Repo.java", "Repo.scala", "Repo.groovy"] {
+            for s in templates {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn jvm_and_csharp_sql_injection_match_escaped_whitespace() {
         let sqli = |name: &str, s: &str| {
             check(&FileInfo::new(name), s, false)
@@ -813,6 +914,87 @@ mod tests {
                     "unexpected code.sql-injection in {name}: {s}"
                 );
             }
+        }
+        // The C# interpolated branch, plain and verbatim.
+        for s in [
+            r#"q = $"SELECT Id\nFROM Users WHERE Id = {id}";"#,
+            r#"q = $"SELECT Id\tFROM Users WHERE Id = {id}";"#,
+            r#"q = $"SELECT Id\r\nFROM Users WHERE Id = {id}";"#,
+            r#"q = $"UPDATE Users\nSET Role = {role}";"#,
+            r#"q = $"DELETE\nFROM Sessions WHERE Id = {id}";"#,
+            r#"q = $@"SELECT Id FROM Users WHERE Id = {id}";"#,
+            "q = $@\"SELECT Id\nFROM Users WHERE Id = {id}\";",
+        ] {
+            assert!(sqli("Users.cs", s), "expected code.sql-injection: {s}");
+        }
+        for s in [
+            r#"msg = $"selected\n{n} files";"#,
+            r#"msg = $"selected\n{n} files from {dir}";"#,
+            r#"msg = $"updated\n{n} rows";"#,
+        ] {
+            assert!(!sqli("Users.cs", s), "unexpected code.sql-injection: {s}");
+        }
+    }
+
+    #[test]
+    fn php_sql_injection_matches_escaped_whitespace() {
+        let f = FileInfo::new("db.php");
+        let sqli = |s| {
+            check(&f, s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            // Interpolation.
+            r#"$q = "SELECT id\nFROM users WHERE id = $id";"#,
+            r#"$q = "SELECT id\tFROM users WHERE id = $id";"#,
+            r#"$q = "SELECT id\r\nFROM users WHERE id = {$id}";"#,
+            r#"$q = "UPDATE users\nSET role = '$role'";"#,
+            r#"$q = "DELETE\nFROM sessions WHERE id = $id";"#,
+            r#"$q = "INSERT\nINTO logs VALUES ('$msg')";"#,
+            // Concatenation.
+            r#"$q = "SELECT id\nFROM users WHERE id = " . $id;"#,
+            r#"$q = "UPDATE users\nSET role = " . $role;"#,
+            r#"$q = "DELETE\nFROM sessions WHERE id = " . $id;"#,
+        ] {
+            assert!(sqli(s), "expected code.sql-injection for: {s}");
+        }
+        for s in [
+            r#"$msg = "selected\n$n files";"#,
+            r#"$msg = "selected\n$n files from $dir";"#,
+            r#"$msg = "selected\n" . $n . " files from " . $dir;"#,
+            r#"$msg = "updated\n$n rows";"#,
+            r#"$q = "SELECT id\nFROM users WHERE id = ?";"#,
+        ] {
+            assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
+        }
+    }
+
+    #[test]
+    fn ruby_sql_injection_matches_escaped_whitespace() {
+        let f = FileInfo::new("db.rb");
+        let sqli = |s| {
+            check(&f, s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for s in [
+            r##"q = "SELECT id\nFROM users WHERE id = #{id}""##,
+            r##"q = "SELECT id\tFROM users WHERE id = #{id}""##,
+            r##"q = "SELECT id\r\nFROM users WHERE id = #{id}""##,
+            r##"q = "UPDATE users\nSET role = '#{role}'""##,
+            r##"q = "DELETE\nFROM sessions WHERE id = #{id}""##,
+            r##"q = "INSERT\nINTO logs VALUES ('#{msg}')""##,
+        ] {
+            assert!(sqli(s), "expected code.sql-injection for: {s}");
+        }
+        for s in [
+            r##"msg = "selected\n#{n} files""##,
+            r##"msg = "selected\n#{n} files from #{dir}""##,
+            r##"msg = "updated\n#{n} rows""##,
+            r##"q = "SELECT id\nFROM users WHERE id = ?""##,
+        ] {
+            assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
         }
     }
 }
