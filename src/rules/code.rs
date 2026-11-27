@@ -326,7 +326,11 @@ pub static RULES: &[Rule] = &[
         "code.sql-injection",
         High,
         jvm,
-        concat!(r#""\s*"#, kw!(), r#"[^"]*"\s*\+\s*[A-Za-z_]"#),
+        concat!(
+            r#""\s*"#,
+            kw!(".", r"(?:\s|\\[nrt])"),
+            r#"[^"]*"\s*\+\s*[A-Za-z_]"#
+        ),
         None,
         SQLI_MSG,
         SQLI_FIX
@@ -365,7 +369,7 @@ pub static RULES: &[Rule] = &[
         cs,
         concat!(
             r#""\s*"#,
-            kw!(),
+            kw!(".", r"(?:\s|\\[nrt])"),
             r#"[^"]*"\s*\+\s*[A-Za-z_]|\$@?"\s*"#,
             kw!(),
             r#"[^"]*\{"#
@@ -731,6 +735,37 @@ mod tests {
                 !sqli(&py_file, s),
                 "unexpected Python code.sql-injection for: {s}"
             );
+        }
+    }
+
+    #[test]
+    fn jvm_and_csharp_sql_injection_match_escaped_whitespace() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for name in ["UserRepo.java", "UserRepo.kt", "Users.cs"] {
+            for s in [
+                r#"q = "SELECT id\nFROM users WHERE id = " + id;"#,
+                r#"q = "SELECT id\tFROM users WHERE id = " + id;"#,
+                r#"q = "SELECT id\r\nFROM users WHERE id = " + id;"#,
+                r#"q = "UPDATE users\nSET role = " + role;"#,
+                r#"q = "DELETE\nFROM sessions WHERE id = " + id;"#,
+                r#"q = "INSERT\nINTO logs VALUES (" + msg;"#,
+            ] {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+            for s in [
+                r#"msg = "selected\n" + n + " files";"#,
+                r#"msg = "selected\n" + n + " files from " + dir;"#,
+                r#"msg = "inserted\n" + n + " rows";"#,
+            ] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
         }
     }
 }

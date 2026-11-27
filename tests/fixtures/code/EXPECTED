@@ -3,9 +3,11 @@ api/UserRepo.java:3 code.command-injection
 api/UserRepo.java:4 code.unsafe-deserialization
 api/UserRepo.java:5 code.weak-hash
 api/UserRepo.java:6 code.weak-cipher
+api/UserRepo.java:7 code.sql-injection
 api/Users.cs:1 code.sql-injection
 api/Users.cs:2 code.sql-injection
 api/Users.cs:3 code.unsafe-deserialization
+api/Users.cs:4 code.sql-injection
 api/handler.go:1 code.command-injection
 api/handler.go:3 code.sql-injection
 api/handler.go:4 code.tls-verify-off
