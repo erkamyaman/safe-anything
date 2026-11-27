@@ -5,7 +5,25 @@
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.
-
+- Secrets: `secret.openrouter-key` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsk-or-v1-..."`).
+- Code: `code.sql-injection` now reports Kotlin string templates in a query
+  (`"SELECT id FROM users WHERE id = $id"`, `${id}`), in `.kt` and `.kts` files only. A positional
+  placeholder (`$1`) and an escaped `\$` are not templates and stay quiet.
+- Code: `code.sql-injection` now reports a Go query concatenated inside `db.Query`, `QueryRow` or
+  `Exec` with an escaped newline, tab or carriage return before the next keyword
+  (`db.Query("SELECT id\nFROM users WHERE id = " + id)`), as the `fmt.Sprintf` form already did.
+- Code: `code.sql-injection` now reports a Ruby query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = #{id}"`).
+- Code: `code.sql-injection` now reports a PHP query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = $id"`), in the interpolated
+  and the concatenated form.
+- Code: `code.sql-injection` now reports a C# interpolated query with an escaped newline, tab or
+  carriage return before the next keyword (`$"SELECT Id\nFROM Users WHERE Id = {id}"`), as the
+  concatenation form already did.
+- Config: `config.remote-script` no longer reports a trailing `#` comment that shows a `| sh`
+  shortcut after a safe command (`curl ... -o install.sh # or: curl ... | sh`), while still
+  reporting `#` inside quotes or words (`https://example.com/i.sh#v1`) and comments after the pipe.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.

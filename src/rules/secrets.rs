@@ -350,7 +350,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.openrouter-key",
         Critical,
-        r"\bsk-or-v1-[0-9a-f]{64}\b",
+        r"(?:\\[nrt]|\b)(sk-or-v1-[0-9a-f]{64})\b",
         "An OpenRouter API key is written in the file."
     ),
     secret!(

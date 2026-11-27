@@ -8,3 +8,5 @@ obj = Marshal.restore(data)
 obj = YAML.safe_load(data)
 a = YAML.unsafe_load(data); b = YAML.safe_load(other)
 a = YAML.load(data, permitted_classes: [Date])
+q = "SELECT id\nFROM users WHERE id = #{id}"
+msg = "selected\n#{n} files from #{dir}"
