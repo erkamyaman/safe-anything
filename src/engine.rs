@@ -186,6 +186,12 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
             })
         });
     let mut scanned = out.into_inner().unwrap();
+    // A binary bun.lockb next to a text bun.lock has already been migrated:
+    // the text lockfile was read, so naming the old one would be misleading.
+    scanned.lockfiles_binary.retain(|rel| {
+        let sibling = base.join(rel).with_file_name("bun.lock");
+        !sibling.exists()
+    });
     scanned.packages.sort();
     scanned.packages.dedup();
     scanned.lockfiles_too_large.sort();

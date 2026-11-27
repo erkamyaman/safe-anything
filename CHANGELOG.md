@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Dependencies: a binary `bun.lockb` is no longer named when a text `bun.lock` sits beside it in the same folder; the text lockfile was already read, so the old binary one is not an unchecked dependency.
 - Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
   (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
   bun.lock.`). It used to be skipped without a word, which read like a clean result.
