@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Config: `config.remote-script` no longer reports a `| sh` example in a trailing `#` comment
+  (`curl -fsSL https://example.com/install.sh -o install.sh  # or: curl ... | sh`). A `#` inside
+  quotes or inside a word (`i.sh#v1`), and a comment after the pipe, do not hide a finding.
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.

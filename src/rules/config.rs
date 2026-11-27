@@ -451,6 +451,48 @@ fn is_public_access_block(header: &str) -> bool {
         )
 }
 
+static REMOTE_SCRIPT: LazyLock<Regex> = LazyLock::new(|| {
+    let rule = RULES.iter().find(|r| r.id == "config.remote-script");
+    Regex::new(rule.map_or("", |r| r.pattern)).unwrap()
+});
+
+/// The part of a shell line that runs: everything before a `#` that starts a comment. A `#`
+/// starts one only at the start of a word and outside quotes, so the fragment of a URL
+/// (`i.sh#v1`), `$#` and a `#` inside `"..."` or `'...'` are kept. A line that is all comment
+/// gives an empty string.
+fn before_shell_comment(line: &str) -> &str {
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    let mut word_start = true;
+    for (at, c) in line.char_indices() {
+        if escaped {
+            escaped = false;
+            word_start = false;
+            continue;
+        }
+        match quote {
+            Some('\'') => {
+                if c == '\'' {
+                    quote = None;
+                }
+            }
+            Some(_) => match c {
+                '\\' => escaped = true,
+                '"' => quote = None,
+                _ => {}
+            },
+            None => match c {
+                '#' if word_start => return &line[..at],
+                '\\' => escaped = true,
+                '\'' | '"' => quote = Some(c),
+                _ => {}
+            },
+        }
+        word_start = quote.is_none() && c.is_whitespace();
+    }
+    line
+}
+
 pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> bool {
     match f.rule.as_str() {
         "config.docker-unpinned-image" => {
@@ -475,7 +517,9 @@ pub fn keep(file: &FileInfo, text: &Text, f: &Finding, hcl: &mut HclWalk) -> boo
         // its block) runs, not a step `name:`.
         "config.remote-script" => {
             let line = text.line(f.line);
-            !line.trim_start().starts_with('#')
+            // The download and the pipe both have to sit before any trailing comment:
+            // `curl ... -o i.sh  # or: curl ... | sh` pipes nothing into a shell.
+            REMOTE_SCRIPT.is_match(before_shell_comment(line))
                 && (!workflow(file)
                     || STEP_KEY
                         .captures(line)
@@ -738,6 +782,71 @@ mod tests {
                 .map(|f| f.line)
                 .collect();
             assert_eq!(lines, [want], "{path}");
+        }
+        // A trailing comment does not run either: only the part before it counts.
+        let remote_script = |path: &str, src: &str| {
+            crate::rules::check(&FileInfo::new(path), src, true)
+                .iter()
+                .any(|f| f.rule == "config.remote-script")
+        };
+        for (path, src) in [
+            (
+                "i.sh",
+                "curl -fsSL https://x.io/i.sh -o i.sh  # or: curl -fsSL https://x.io/i.sh | sh",
+            ),
+            (
+                "i.sh",
+                "curl -fsSL https://x.io/i.sh -o i.sh\t# sh -c \"$(curl https://x.io/i.sh)\"",
+            ),
+            ("i.sh", "echo \"see docs\" # curl https://x.io/i.sh | bash"),
+            (
+                "i.ps1",
+                "irm https://x.io/i.ps1 -OutFile i.ps1 # or: irm https://x.io/i.ps1 | iex",
+            ),
+            (
+                "Dockerfile",
+                "RUN curl -fsSL https://x.io/i.sh -o /tmp/i.sh # not: curl https://x.io/i.sh | sh",
+            ),
+            (
+                "Makefile",
+                "all:\n\tcurl -fsSL https://x.io/i.sh -o i.sh # not: curl https://x.io/i.sh | sh",
+            ),
+        ] {
+            assert!(!remote_script(path, src), "unexpected finding: {src}");
+        }
+        for src in [
+            // A `#` inside quotes, inside a word, and after the pipe.
+            "curl -fsSL \"https://x.io/i.sh#v1\" | sh",
+            "curl -fsSL 'https://x.io/i.sh#v1' | sh",
+            "curl -fsSL https://x.io/i.sh#v1 | sh",
+            "curl -fsSL https://x.io/i.sh | sh # install",
+            "curl -fsSL https://x.io/i.sh | sh -s -- \"$#\" # install",
+            "sh -c \"$(curl -fsSL https://x.io/i.sh)\" # install",
+            // An escaped quote does not open a string.
+            "echo it\\'s fine; curl -fsSL https://x.io/i.sh | sh",
+        ] {
+            assert!(remote_script("i.sh", src), "expected a finding: {src}");
+        }
+    }
+
+    #[test]
+    fn before_shell_comment_cuts_at_a_word_start_outside_quotes() {
+        for (line, want) in [
+            ("curl x | sh", "curl x | sh"),
+            ("curl x -o f  # or: curl x | sh", "curl x -o f  "),
+            ("# all comment", ""),
+            ("   # indented comment", "   "),
+            ("curl x#v1 | sh", "curl x#v1 | sh"),
+            ("curl \"x # y\" | sh", "curl \"x # y\" | sh"),
+            ("curl 'x # y' | sh # z", "curl 'x # y' | sh "),
+            ("echo \"a \\\" # b\" # c", "echo \"a \\\" # b\" "),
+            (
+                "echo \\# not a comment # comment",
+                "echo \\# not a comment ",
+            ),
+            ("echo $# args", "echo $# args"),
+        ] {
+            assert_eq!(before_shell_comment(line), want, "{line}");
         }
     }
 }
