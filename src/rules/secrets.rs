@@ -97,7 +97,7 @@ fn env_example(f: &FileInfo) -> bool {
 
 const ENV_SECRET_LINE: &str = concat!(
     r"(?m)^[ \t]*(?:export[ \t]+)?",
-    r"[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*",
+    r"(?:[A-Za-z0-9_]*(?i:secret|token|password|passwd|api_?key|private_?key|access_?key|auth|credential)[A-Za-z0-9_]*|(?:[A-Za-z0-9_]*_)?(?i:pass|pwd)(?:_[A-Za-z0-9_]*)?)",
     r"[ \t]*=[ \t]*(?:",
     r#""([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})"[ \t]*(?:#[^\r\n]*)?"#,
     r#"|'([A-Za-z0-9+/_.=!@#$%^&*\-]{16,})'[ \t]*(?:#[^\r\n]*)?"#,
@@ -799,5 +799,43 @@ mod tests {
         }
         let recipient = format!("recipient = \"age1pq1{}\"", bech32.to_lowercase());
         assert!(age(&recipient).is_empty(), "{recipient}");
+    }
+
+    #[test]
+    fn env_secret_line_pass_and_pwd_names() {
+        let s = ["Fake0000", "Value0000", "Q7mZ"].concat();
+        for name in [".env", ".env.example"] {
+            for var in ["PASSPORT_ID", "BYPASS_CACHE", "COMPASS_URL"] {
+                let src = format!("{var}={s}\n");
+                assert!(check(&FileInfo::new(name), &src, false).is_empty(), "{var}");
+            }
+            for src in ["DB_PASS=your-pass-here\n", "MYSQL_PWD=your-pwd-here\n"] {
+                assert!(check(&FileInfo::new(name), src, false).is_empty(), "{src}");
+            }
+        }
+        for (name, rule) in [
+            (".env", "secret.env-file"),
+            (".env.example", "secret.env-example-value"),
+        ] {
+            for var in [
+                "DB_PASS",
+                "SMTP_PASS",
+                "PASS_FILE",
+                "MYSQL_PWD",
+                "PASS",
+                "PWD",
+                "_PASS",
+                "PWD_",
+            ] {
+                let src = format!("{var}={s}\n");
+                let found: Vec<_> = check(&FileInfo::new(name), &src, false)
+                    .into_iter()
+                    .filter(|f| f.rule == rule)
+                    .collect();
+                assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
+                assert_eq!(found[0].snippet, format!("{var}=Fake****"));
+                assert!(!found[0].snippet.contains(&s));
+            }
+        }
     }
 }

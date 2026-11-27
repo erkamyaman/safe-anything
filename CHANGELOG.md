@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Secrets: `secret.env-file` and `secret.env-example-value` now also match variable names where
+  `PASS` or `PWD` is a whole `_`-separated word (`DB_PASS`, `SMTP_PASS`, `PASS_FILE`, `MYSQL_PWD`),
+  while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.
 - Secrets: new rule `secret.prefect-api-key` (critical) for Prefect API keys (`pnu_` followed by 36
   letters and digits).
 - Report: the summary line says `Scanned 1 file` and `1 package checked against OSV.dev` for a
