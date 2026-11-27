@@ -397,7 +397,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.flyio-token",
         Critical,
-        r"\b(fo1_[A-Za-z0-9_\-]{43})(?:[^A-Za-z0-9_\-]|\z)",
+        r"(?:\\[nrt]|\b)(fo1_[A-Za-z0-9_\-]{43})(?:[^A-Za-z0-9_\-]|\z)",
         "A Fly.io access token is written in the file."
     ),
     secret!(
