@@ -18,6 +18,9 @@ fn jvm(f: &FileInfo) -> bool {
 fn kotlin(f: &FileInfo) -> bool {
     f.ext_in(&["kt", "kts"])
 }
+fn scala(f: &FileInfo) -> bool {
+    f.ext_in(&["scala", "sc"])
+}
 fn php(f: &FileInfo) -> bool {
     f.ext_in(&["php", "phtml"])
 }
@@ -349,6 +352,24 @@ pub static RULES: &[Rule] = &[
         kotlin,
         concat!(
             r#""\s*"#,
+            kw!(".", r"(?:\s|\\[nrt])"),
+            r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
+        ),
+        None,
+        SQLI_MSG,
+        SQLI_FIX
+    ),
+    // Scala `s` and `f` interpolations (`s"... $id"`, `s"... ${id}"`). Scala
+    // files only: in Java and Groovy a `$` inside a string is just a character.
+    // The word boundary keeps the `sql"..."` interpolator (Slick, doobie),
+    // which binds its holes as parameters, quiet, and an escaped `\$` is
+    // skipped.
+    rule!(
+        "code.sql-injection",
+        High,
+        scala,
+        concat!(
+            r#"\b[sf]"\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
             r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
         ),
@@ -878,6 +899,49 @@ mod tests {
         // In Java, Scala and Groovy sources the rule does not run.
         for name in ["Repo.java", "Repo.scala", "Repo.groovy"] {
             for s in templates {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn scala_sql_injection_matches_interpolators() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for name in ["Repo.scala", "Main.sc"] {
+            for s in [
+                r#"val q = s"SELECT id FROM users WHERE id = $id""#,
+                r#"val q = s"SELECT id FROM users WHERE id = ${user.id}""#,
+                r#"val q = s"SELECT id FROM users WHERE name = '${user.name}'""#,
+                r#"val q = s"SELECT id\nFROM users WHERE id = $id""#,
+                r#"val q = s"UPDATE users SET role = '$role' WHERE id = 1""#,
+                r#"val q = s"DELETE FROM sessions WHERE id = $id""#,
+                r#"val q = s"INSERT INTO logs VALUES ('$msg')""#,
+                // The f interpolator formats its holes the same way.
+                r#"val q = f"SELECT id FROM users WHERE id = $id%d""#,
+                // A positional placeholder first, then a hole.
+                r#"val q = s"SELECT id FROM users WHERE a = $1 AND b = $name""#,
+            ] {
+                assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+            }
+            for s in [
+                r#"val msg = s"Selected $n users from the list""#,
+                r#"val msg = s"updated $n rows""#,
+                r#"val q = s"SELECT id FROM users WHERE id = ?""#,
+                r#"val q = s"SELECT id FROM users WHERE id = $1""#,
+                r#"val q = s"SELECT id FROM prices WHERE currency = '\$'""#,
+                r#"val q = s"SELECT id FROM users WHERE name = '\$name'""#,
+                // Slick and doobie bind their $ holes as parameters.
+                r#"val q = sql"SELECT id FROM users WHERE id = $id""#,
+                // Without an interpolator a $ is just text in Scala.
+                r#"val q = "SELECT id FROM users WHERE id = $id""#,
+            ] {
                 assert!(
                     !sqli(name, s),
                     "unexpected code.sql-injection in {name}: {s}"
