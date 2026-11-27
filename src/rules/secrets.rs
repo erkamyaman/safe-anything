@@ -347,6 +347,12 @@ pub static RULES: &[Rule] = &[
         "A Perplexity API key is written in the file."
     ),
     secret!(
+        "secret.openrouter-key",
+        Critical,
+        r"\bsk-or-v1-[0-9a-f]{64}\b",
+        "An OpenRouter API key is written in the file."
+    ),
+    secret!(
         "secret.google-api-key",
         High,
         r"\bAIza[0-9A-Za-z_\-]{35}",
