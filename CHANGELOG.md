@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.openrouter-key` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsk-or-v1-..."`).
 - Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
   scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
   as it already did in workflows.
