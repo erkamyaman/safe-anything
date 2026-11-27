@@ -186,6 +186,12 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
             })
         });
     let mut scanned = out.into_inner().unwrap();
+    // A text bun.lock in the same folder already holds the same packages, so a
+    // bun.lockb left over next to it needs no note.
+    scanned.lockfiles_binary.retain(|rel| {
+        let dir = Path::new(rel).parent().unwrap_or(Path::new(""));
+        !base.join(dir).join(deps::BUN_TEXT_LOCKFILE).exists()
+    });
     scanned.packages.sort();
     scanned.packages.dedup();
     scanned.lockfiles_too_large.sort();

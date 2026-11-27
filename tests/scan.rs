@@ -365,6 +365,30 @@ fn binary_bun_lockfile_is_named() {
 }
 
 #[test]
+fn binary_bun_lockfile_next_to_a_text_lockfile_is_not_named() {
+    let root = std::env::temp_dir().join(format!("safe-anything-bun-both-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("a")).unwrap();
+    std::fs::create_dir_all(root.join("b")).unwrap();
+    for name in ["bun.lockb", "a/bun.lockb", "b/bun.lockb"] {
+        std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
+    }
+    // The root and a/ have moved to the text lockfile, b/ has not.
+    for name in ["bun.lock", "a/bun.lock"] {
+        std::fs::write(
+            root.join(name),
+            "{\"lockfileVersion\": 1, \"workspaces\": {}, \"packages\": {}}",
+        )
+        .unwrap();
+    }
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(report.lockfiles_binary, ["b/bun.lockb"]);
+    assert!(report.lockfiles_too_large.is_empty());
+    assert_eq!(report.packages_checked, 0);
+}
+
+#[test]
 fn lockfile_over_the_limit_is_named() {
     let root = std::env::temp_dir().join(format!("safe-anything-huge-lock-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
