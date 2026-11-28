@@ -300,7 +300,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.pulumi-token",
         Critical,
-        r"\bpul-[a-f0-9]{40}\b",
+        r"(?:\\[nrt]|\b)(pul-[a-f0-9]{40})\b",
         "A Pulumi access token is written in the file."
     ),
     secret!(

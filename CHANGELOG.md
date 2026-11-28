@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.pulumi-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\npul-..."`).
 - Secrets: `secret.npm-token` now reports a token that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nnpm_..."`).
 - Code: `code.sql-injection` now also reports Scala triple-quoted interpolations on one line
