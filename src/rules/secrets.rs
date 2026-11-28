@@ -320,7 +320,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.huggingface-token",
         Critical,
-        r"\bhf_[A-Za-z]{34}\b",
+        r"(?:\\[nrt]|\b)(hf_[A-Za-z]{34})\b",
         "A Hugging Face access token is written in the file."
     ),
     secret!(
