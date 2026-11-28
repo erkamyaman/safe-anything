@@ -896,6 +896,13 @@ mod tests {
             "iex (irm https://example.com/i.ps1)",
             "Invoke-Expression (Invoke-RestMethod https://example.com/i.ps1)",
             "iex ((New-Object System.Net.WebClient).DownloadString('https://example.com/i.ps1'))",
+            "zsh <(curl -fsSL https://example.com/i.sh)",
+            "bash <(curl -fsSL \"$URL\")",
+            "curl -fsSL https://example.com/i.sh | sudo -u root /bin/bash",
+            "IEX (IWR $env:URL)",
+            "iex (irm $url)",
+            "iex ((New-Object Net.WebClient).DownloadString($url))",
+            "iex ($client.DownloadString(\"https://example.com/i.ps1\"))",
         ] {
             assert!(REMOTE_SCRIPT.is_match(hit), "{hit}");
         }
@@ -908,6 +915,8 @@ mod tests {
             "curl -fsSL https://example.com/a | env > env.txt",
             "iex (Get-Content ./setup.ps1 -Raw)",
             "irm https://example.com/i.ps1 -OutFile i.ps1",
+            "./run.sh <(curl -s https://example.com/a)",
+            "diff a.sh <(curl -s https://example.com/a.sh)",
         ] {
             assert!(!REMOTE_SCRIPT.is_match(quiet), "{quiet}");
         }
