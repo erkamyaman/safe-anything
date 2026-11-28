@@ -368,7 +368,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.notion-token",
         Critical,
-        r"\bntn_[0-9]{11}[A-Za-z0-9]{35}\b",
+        r"(?:\\[nrt]|\b)(ntn_[0-9]{11}[A-Za-z0-9]{35})\b",
         "A Notion integration token is written in the file."
     ),
     secret!(
