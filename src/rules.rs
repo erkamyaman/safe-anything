@@ -690,8 +690,25 @@ pub fn check(file: &FileInfo, src: &str, include_tests: bool) -> Vec<Finding> {
         {
             continue;
         }
-        for caps in c.re.captures_iter(src) {
+        let mut pos = 0;
+        while pos <= src.len() {
+            let Some(caps) = c.re.captures_at(src, pos) else {
+                break;
+            };
             let m = caps.get(0).expect("whole match");
+            let next_after_match = if m.end() > m.start() {
+                m.end()
+            } else if let Some(ch) = src[m.end()..].chars().next() {
+                m.end() + ch.len_utf8()
+            } else {
+                src.len() + 1
+            };
+            let next_after_start = if let Some(ch) = src[m.start()..].chars().next() {
+                m.start() + ch.len_utf8()
+            } else {
+                src.len() + 1
+            };
+            pos = next_after_match;
             // A name-only rule matches a variable name; what follows it on the line holds the
             // value. It is read at most once per line, so a long line with many names is not read
             // again for each of them.
@@ -714,6 +731,7 @@ pub fn check(file: &FileInfo, src: &str, include_tests: bool) -> Vec<Finding> {
                 continue;
             }
             if !secrets::plausible(c.rule.id, secret, &src[m.end()..]) {
+                pos = next_after_start;
                 continue;
             }
             // Record secret spans before suppression so an ignore marker silences the finding

@@ -166,14 +166,21 @@ const AWS_SECRET_KEY: &str = concat!(
     r#"[ \t]{0,8}["'`]?([A-Za-z0-9/+]{40})"#,
 );
 
-/// Whether a matched value can be a secret for the rule. Only `secret.aws-secret-key` is checked:
-/// its value has no prefix, so placeholders and other 40-character strings have to be told apart
-/// by the value alone, and its pattern stops after the 40 characters, so `after` (the text that
-/// follows the match) must not go on with another base64 character.
+/// Whether a matched value can be a secret for the rule. `secret.aws-secret-key` has no prefix so
+/// its value and following character are checked here; `secret.dockerhub-token` and
+/// `secret.sendgrid-key` check their trailing boundary here instead of consuming a trailing
+/// character in the regex so adjacent tokens separated by `\n` both match and redact.
 pub fn plausible(id: &str, value: Option<&str>, after: &str) -> bool {
-    id != "secret.aws-secret-key"
-        || (value.is_some_and(plausible_aws_secret)
-            && !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "/+=".contains(c)))
+    match id {
+        "secret.aws-secret-key" => {
+            value.is_some_and(plausible_aws_secret)
+                && !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "/+=".contains(c))
+        }
+        "secret.dockerhub-token" | "secret.sendgrid-key" => {
+            !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "_-".contains(c))
+        }
+        _ => true,
+    }
 }
 
 /// Words that read as a name or a path: a first word in small letters, then words that start
@@ -318,7 +325,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.dockerhub-token",
         Critical,
-        r"(?:\\[nrt]|\b)(dckr_pat_[A-Za-z0-9_\-]{27})(?:[^A-Za-z0-9_\-]|\z)",
+        r"(?:\\[nrt]|\b)(dckr_pat_[A-Za-z0-9_\-]{27})",
         "A Docker Hub personal access token is written in the file."
     ),
     secret!(
@@ -384,7 +391,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.sendgrid-key",
         Critical,
-        r"(?:\\[nrt]|\b)(SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43})(?:[^A-Za-z0-9_\-]|\z)",
+        r"(?:\\[nrt]|\b)(SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43})",
         "A SendGrid API key is written in the file."
     ),
     secret!(
@@ -1049,6 +1056,33 @@ mod tests {
                 format!(r#"{{"note":"line\n{token}{extra}"}}"#),
             ] {
                 assert!(hits(&src).is_empty(), "{rule} false positive on {src}");
+            }
+            // Two adjacent tokens separated by an escaped newline must both be found and redacted
+            // (trailing boundary checks must not consume the `\` starting the second `\n`).
+            let pair = format!(r#"{{"note":"{token}\n{token}"}}"#);
+            let pair_hits = hits(&pair);
+            assert!(
+                !pair_hits.is_empty(),
+                "{rule} missed adjacent tokens in {pair}"
+            );
+            for f in &pair_hits {
+                assert!(
+                    !f.snippet.contains(token),
+                    "{rule} leaked second adjacent token in snippet: {}",
+                    f.snippet
+                );
+            }
+            // A rejected prefix match (e.g. `dckr_pat_old-` overlapping a real token) must
+            // resume right after the rejected start so the real token is still caught and masked.
+            if *rule == "secret.dockerhub-token" {
+                let overlapped = format!(r#"{{"note":"dckr_pat_old-{token}"}}"#);
+                let found = hits(&overlapped);
+                assert_eq!(found.len(), 1, "{rule} missed overlapped token: {found:#?}");
+                assert!(
+                    !found[0].snippet.contains(token),
+                    "{rule} leaked overlapped token in snippet: {}",
+                    found[0].snippet
+                );
             }
         }
     }
