@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::net::Ipv6Addr;
 
 use serde_json::Value;
 
@@ -162,7 +163,7 @@ pub static STRUCTURED: &[(&str, Severity, &str, &str)] = &[
     (
         "agent.mcp-insecure-url",
         Severity::High,
-        "A remote MCP server is reached over plain HTTP.",
+        "A remote MCP server is reached over plain HTTP or WebSocket.",
         INSECURE_URL_FIX,
     ),
 ];
@@ -171,7 +172,8 @@ const SHELL_FIX: &str = "Allow specific commands, for example \"Bash(npm test:*)
 const UNPINNED_FIX: &str =
     "Pin an exact version (pkg@1.2.3, pkg==1.2.3, or an image digest) and update on purpose.";
 const PLAINTEXT_FIX: &str = "Reference an environment variable (\"${VAR}\") and keep the value out of files that get shared or committed.";
-const INSECURE_URL_FIX: &str = "Use https:// for every MCP server that is not on this machine.";
+const INSECURE_URL_FIX: &str =
+    "Use https:// or wss:// for every MCP server that is not on this machine.";
 
 /// Where a plaintext MCP secret sits in the source so `rules::check` can mask both the raw JSON
 /// string (including escapes like `\/`, `\uXXXX`, `\"` or split lines) and any plain copy of the
@@ -306,6 +308,9 @@ fn check_server(
             None,
         ));
     }
+    let server_keys = value_object(text.src, start)
+        .map(|at| object_keys(text.src, at))
+        .unwrap_or_default();
     // Local servers get credentials in `env`; remote ones in `headers` (`http_headers` is Codex's
     // name for it).
     for (field, header) in [
@@ -319,8 +324,9 @@ fn check_server(
         };
         // Find each key inside its own object, so the same name in `args`, in `env` or as a value
         // does not take its line.
-        let field_keys = value_object(text.src, start)
-            .and_then(|at| object_keys(text.src, at).get(field).copied())
+        let field_keys = server_keys
+            .get(field)
+            .copied()
             .and_then(|at| value_object(text.src, at))
             .map(|at| object_keys(text.src, at))
             .unwrap_or_default();
@@ -377,38 +383,89 @@ fn check_server(
             }
         }
     }
-    if let Some(url) = server
-        .get("url")
-        .or_else(|| server.get("serverUrl"))
-        .and_then(Value::as_str)
-        && let Some(rest) = url
-            .get(..7)
-            .filter(|prefix| prefix.eq_ignore_ascii_case("http://"))
-            .map(|_| &url[7..])
-    {
-        let host = match rest.find(']') {
-            Some(end) if rest.starts_with('[') => &rest[..end + 1],
-            _ => rest.split(['/', ':']).next().unwrap_or(""),
+    // `url` is standard, `serverUrl` is Windsurf's key, and `httpUrl` is Gemini CLI's Streamable
+    // HTTP key. Check all of them so an insecure `httpUrl` is not hidden behind an `https://` `url`.
+    for field in ["url", "serverUrl", "httpUrl"] {
+        let Some(url) = server.get(field).and_then(Value::as_str) else {
+            continue;
         };
-        if !matches!(host, "localhost" | "127.0.0.1" | "[::1]") {
-            let line = line_after(text, start, url);
-            out.push((
-                finding(
-                    file,
-                    text,
-                    line,
-                    Meta {
-                        id: "agent.mcp-insecure-url",
-                        family: Family::Agent,
-                        severity: Severity::High,
-                        message: "A remote MCP server is reached over plain HTTP, so its tools and your data can be read or changed on the way.",
-                        fix: INSECURE_URL_FIX,
-                    },
-                ),
-                None,
-            ));
-        }
+        let Some(scheme) = insecure_remote_scheme(url) else {
+            continue;
+        };
+        let line = server_keys
+            .get(field)
+            .copied()
+            .map_or_else(|| line_after(text, start, url), |at| text.line_of(at));
+        let (message, fix) = match scheme {
+            "ws" => (
+                "A remote MCP server is reached over plain WebSocket (ws://), so its tools and your data can be read or changed on the way.",
+                "Use wss:// for every MCP server that is not on this machine.",
+            ),
+            _ => (
+                "A remote MCP server is reached over plain HTTP, so its tools and your data can be read or changed on the way.",
+                "Use https:// for every MCP server that is not on this machine.",
+            ),
+        };
+        out.push((
+            finding(
+                file,
+                text,
+                line,
+                Meta {
+                    id: "agent.mcp-insecure-url",
+                    family: Family::Agent,
+                    severity: Severity::High,
+                    message,
+                    fix,
+                },
+            ),
+            None,
+        ));
     }
+}
+
+/// Returns `"http"` or `"ws"` when `url` uses plain `http://` or `ws://` for a host other than
+/// `localhost`, `127.0.0.1` or `[::1]`. Strips RFC 3986 authority userinfo (`user:pass@`) and
+/// requires both RFC 3986 (`/`, `?`, `#`) and WHATWG (`/` , `\`, `?`, `#`) authority boundaries to
+/// resolve to a local host, so `http://localhost:pass@evil.example`, `http://[::1]@evil.example`,
+/// `http://evil.example\@localhost/mcp` and `http://localhost\@evil.example/mcp` do not look local.
+fn insecure_remote_scheme(url: &str) -> Option<&'static str> {
+    let (scheme, rest) = if let Some(rest) = url
+        .get(..7)
+        .filter(|prefix| prefix.eq_ignore_ascii_case("http://"))
+        .map(|_| &url[7..])
+    {
+        ("http", rest)
+    } else {
+        let rest = url
+            .get(..5)
+            .filter(|prefix| prefix.eq_ignore_ascii_case("ws://"))
+            .map(|_| &url[5..])?;
+        ("ws", rest)
+    };
+    let authority_rfc = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let authority_whatwg = rest.split(['/', '\\', '?', '#']).next().unwrap_or("");
+    let local = is_local_authority(authority_rfc) && is_local_authority(authority_whatwg);
+    (!local).then_some(scheme)
+}
+
+fn is_local_authority(authority: &str) -> bool {
+    let hostport = authority.rsplit('@').next().unwrap_or(authority);
+    let host = match hostport.find(']') {
+        Some(end)
+            if hostport.starts_with('[')
+                && (hostport[end + 1..].is_empty() || hostport[end + 1..].starts_with(':')) =>
+        {
+            &hostport[..end + 1]
+        }
+        _ => hostport.split(':').next().unwrap_or(""),
+    };
+    let ipv6_loopback = host
+        .strip_prefix('[')
+        .and_then(|s| s.strip_suffix(']'))
+        .and_then(|ip| ip.parse::<Ipv6Addr>().ok())
+        .is_some_and(|ip| ip.is_loopback());
+    host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || ipv6_loopback
 }
 
 /// Whether a value points at a credential kept elsewhere instead of holding one. After the auth
@@ -1123,5 +1180,46 @@ mod tests {
                 .iter()
                 .all(|(f, _)| f.rule == "agent.unrestricted-shell")
         );
+    }
+
+    #[test]
+    fn mcp_insecure_url_checks_http_url_ws_and_authority_parsing() {
+        let gemini = FileInfo::new(".gemini/settings.json");
+        let cfg = r#"{
+  "mcpServers": {
+    "gemini-http": { "httpUrl": "http://mcp.example.net/mcp" },
+    "gemini-both": { "url": "https://mcp.example.net/sse", "httpUrl": "http://mcp.example.net/mcp" },
+    "ws-remote": { "url": "ws://mcp.example.net/ws" },
+    "ws-upper": { "serverUrl": "WS://203.0.113.5:8080/ws" },
+    "userinfo-localhost": { "url": "http://localhost:pass@mcp.example.net/mcp" },
+    "userinfo-ipv4": { "url": "http://127.0.0.1:secret@mcp.example.net/mcp" },
+    "userinfo-ipv6": { "url": "http://[::1]@mcp.example.net/mcp" },
+    "ipv6-trailing": { "url": "http://[::1]evil.example/mcp" },
+    "backslash-whatwg": { "url": "http://mcp.example.net\\@localhost/mcp" },
+    "backslash-rfc": { "url": "http://localhost\\@mcp.example.net/mcp" },
+    "ipv4-mapped-loopback": { "url": "http://[::ffff:127.0.0.1]:8080/mcp" },
+    "local-upper": { "httpUrl": "http://LOCALHOST:3000/mcp" },
+    "local-query": { "url": "http://localhost?debug=1" },
+    "local-v6-expanded": { "url": "http://[0:0:0:0:0:0:0:1]:8080/mcp" },
+    "local-v6-padded": { "url": "http://[0000::0001]:8080/mcp" },
+    "ws-local": { "url": "ws://localhost:3000/ws" },
+    "ws-local-v4": { "url": "ws://127.0.0.1:3000/ws" },
+    "ws-local-v6": { "url": "ws://[::1]:3000/ws" },
+    "wss-remote": { "url": "wss://mcp.example.net/ws" },
+    "https-remote": { "httpUrl": "https://mcp.example.net/mcp" },
+    "utf8-short": { "url": "ééé" }
+  }
+}"#;
+        let findings = structured(&gemini, &Text::new(cfg));
+        let mut lines: Vec<usize> = findings.iter().map(|(f, _)| f.line).collect();
+        lines.sort_unstable();
+        assert_eq!(lines, vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+        assert!(
+            findings
+                .iter()
+                .all(|(f, _)| f.rule == "agent.mcp-insecure-url")
+        );
+        let ws = findings.iter().find(|(f, _)| f.line == 5).unwrap();
+        assert!(ws.0.fix.contains("wss://"), "{}", ws.0.fix);
     }
 }

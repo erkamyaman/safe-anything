@@ -1,11 +1,19 @@
+api/Repo.kt:1 code.sql-injection
+api/Repo.kt:2 code.sql-injection
+api/Repo.scala:1 code.sql-injection
+api/Repo.scala:2 code.sql-injection
+api/Repo.scala:3 code.sql-injection
 api/UserRepo.java:1 code.sql-injection
 api/UserRepo.java:3 code.command-injection
 api/UserRepo.java:4 code.unsafe-deserialization
 api/UserRepo.java:5 code.weak-hash
 api/UserRepo.java:6 code.weak-cipher
+api/UserRepo.java:7 code.sql-injection
 api/Users.cs:1 code.sql-injection
 api/Users.cs:2 code.sql-injection
 api/Users.cs:3 code.unsafe-deserialization
+api/Users.cs:4 code.sql-injection
+api/Users.cs:6 code.sql-injection
 api/handler.go:1 code.command-injection
 api/handler.go:3 code.sql-injection
 api/handler.go:4 code.tls-verify-off
@@ -15,10 +23,12 @@ api/handler.go:11 code.sql-injection
 api/handler.go:13 code.sql-injection
 api/handler.go:14 code.sql-injection
 api/handler.go:19 code.sql-injection
+api/handler.go:20 code.sql-injection
 api/handler.go:6 code.ssrf
 api/index.php:1 code.sql-injection
 api/index.php:11 code.sql-injection
 api/index.php:12 code.ssrf
+api/index.php:14 code.sql-injection
 api/index.php:2 code.command-injection
 api/index.php:3 code.file-inclusion
 api/index.php:4 code.unsafe-deserialization
@@ -27,6 +37,7 @@ api/index.php:7 code.eval
 api/index.php:8 code.sql-injection
 api/index.php:9 code.command-injection
 api/users_controller.rb:1 code.sql-injection
+api/users_controller.rb:11 code.sql-injection
 api/users_controller.rb:3 code.command-injection
 api/users_controller.rb:4 code.unsafe-deserialization
 api/users_controller.rb:5 code.xss-raw-html
@@ -88,3 +99,4 @@ web/login.spec.ts:3 secret.aws-access-key
 web/page.vue:1 code.xss-v-html
 web/app.js:34 code.open-redirect
 web/app.js:36 code.sql-injection
+web/app.js:38 code.sql-injection

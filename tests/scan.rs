@@ -275,8 +275,9 @@ fn deps() {
     // as a dependency): the `my-app@workspace:.` entry in web/yarn.lock, and the
     // gems in the `GIT` and `PATH` sections of rb/Gemfile.lock, and the editable
     // git checkout of `requests` in pipenv/Pipfile.lock. Only the gems in its two
-    // `GEM` sections count.
-    check_with("deps", options, Some(27));
+    // `GEM` sections count. In bun/bun.lock the `ui@workspace:` and `debug@github:`
+    // entries are skipped the same way.
+    check_with("deps", options, Some(31));
 }
 
 /// Writes a package-lock.json listing `n` packages, padded with a long
@@ -343,6 +344,47 @@ fn large_lockfile_out_of_byte_order_keeps_its_lines() {
     lines.sort_unstable();
     assert_eq!(report.packages_checked, 12_000);
     assert_eq!(lines, [7 + 5 * 9, 7 + 5 * 10, 7 + 5 * 11_999]);
+}
+
+#[test]
+fn binary_bun_lockfile_is_named() {
+    let root = std::env::temp_dir().join(format!("safe-anything-bun-lockb-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("web")).unwrap();
+    for name in ["bun.lockb", "web/bun.lockb"] {
+        std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
+    }
+    // Another binary file, and a text lockfile, are not named.
+    std::fs::write(root.join("logo.bin"), b"\0\0\0").unwrap();
+    std::fs::write(root.join("web/yarn.lock"), "").unwrap();
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    assert_eq!(report.lockfiles_binary, ["bun.lockb", "web/bun.lockb"]);
+    assert!(report.lockfiles_too_large.is_empty());
+    assert_eq!(report.packages_checked, 0);
+}
+
+#[test]
+fn binary_bun_lockfile_is_omitted_when_a_text_lockfile_sits_next_to_it() {
+    let root = std::env::temp_dir().join(format!("safe-anything-bun-both-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("a")).unwrap();
+    std::fs::create_dir_all(root.join("b")).unwrap();
+    for name in ["bun.lock", "a/bun.lock"] {
+        std::fs::write(
+            root.join(name),
+            r#"{"lockfileVersion":1,"workspaces":{},"packages":{}}"#,
+        )
+        .unwrap();
+    }
+    for name in ["bun.lockb", "a/bun.lockb", "b/bun.lockb"] {
+        std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
+    }
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    // Only the lone binary lockfile is named; the one beside bun.lock is not.
+    assert_eq!(report.lockfiles_binary, ["b/bun.lockb"]);
+    assert_eq!(report.packages_checked, 0);
 }
 
 #[test]

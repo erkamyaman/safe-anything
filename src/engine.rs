@@ -84,6 +84,8 @@ pub struct Scanned {
     pub env_files: Vec<String>,
     /// Lockfiles left out of the dependency check because they are over `MAX_LOCK_BYTES`.
     pub lockfiles_too_large: Vec<String>,
+    /// Binary lockfiles (`bun.lockb`), which cannot be read for packages.
+    pub lockfiles_binary: Vec<String>,
 }
 
 pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
@@ -93,6 +95,7 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
         packages: Vec::new(),
         env_files: Vec::new(),
         lockfiles_too_large: Vec::new(),
+        lockfiles_binary: Vec::new(),
     });
     let single_file = root.is_file();
     let base = if single_file {
@@ -136,6 +139,11 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
                     .to_string_lossy()
                     .replace('\\', "/");
                 let info = FileInfo::new(&rel);
+                // Named here, before the binary check in `read_text` drops it.
+                if info.name == deps::BUN_BINARY_LOCKFILE {
+                    out.lock().unwrap().lockfiles_binary.push(rel);
+                    return WalkState::Continue;
+                }
                 if skipped_by_name(&info) {
                     return WalkState::Continue;
                 }
@@ -178,9 +186,16 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
             })
         });
     let mut scanned = out.into_inner().unwrap();
+    // A binary bun.lockb next to a text bun.lock has already been migrated:
+    // the text lockfile was read, so naming the old one would be misleading.
+    scanned.lockfiles_binary.retain(|rel| {
+        let sibling = base.join(rel).with_file_name(deps::BUN_TEXT_LOCKFILE);
+        !sibling.exists()
+    });
     scanned.packages.sort();
     scanned.packages.dedup();
     scanned.lockfiles_too_large.sort();
+    scanned.lockfiles_binary.sort();
     scanned
 }
 

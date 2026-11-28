@@ -2,6 +2,72 @@
 
 ## Unreleased
 
+- Agent: `agent.mcp-insecure-url` now also checks Gemini CLI's `httpUrl` field and plain
+  WebSocket (`ws://`) URLs, strips RFC 3986 userinfo (`user:pass@`) before checking the host so
+  URLs like `http://localhost:pass@evil.example` and `http://[::1]@evil.example` do not look local,
+  and treats `localhost` case-insensitively and before `?` or `#`.
+- Config: `config.remote-script` now reports a download piped into a shell that is named by its
+  path or started through `env` (`| /bin/bash`, `| /usr/bin/env bash`, `| env sh`), including
+  `sudo /bin/bash`.
+- Config: `config.remote-script` now reports process substitution into a shell
+  (`bash <(curl ...)`, `source <(curl ...)`, `. <(wget ...)`), while `diff <(curl ...)`,
+  `cat <(curl ...)` and `bash <(cat ...)` stay quiet.
+- Config: `config.remote-script` now reports `iex (irm ...)`,
+  `Invoke-Expression (Invoke-RestMethod ...)` and
+  `iex ((New-Object System.Net.WebClient).DownloadString(...))`, while
+  `iex (Get-Content ...)` stays quiet.
+- Code: `code.sql-injection` now reports Scala `s` and `f` interpolations in a query
+  (`s"SELECT id FROM users WHERE id = $id"`, `${id}`), in `.scala` and `.sc` files only. The
+  `sql"..."` interpolator (Slick, doobie), which binds its holes as parameters, and an escaped
+  `\$` stay quiet.
+- Secrets: `secret.linear-api-key` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nlin_api_..."`).
+- Secrets: `secret.prefect-api-key` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\npnu_..."`).
+- Secrets: `secret.sentry-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsntryu_..."`), as the OpenRouter and New
+  Relic rules already did.
+- Dependencies: a binary `bun.lockb` is no longer named when a text `bun.lock` sits beside it in
+  the same folder; the text lockfile was already read, so the old binary one is not an unchecked
+  dependency.
+- Dependencies: a binary `bun.lockb` (bun before 1.2) is now named in the report
+  (`Not checked, binary lockfile: bun.lockb. Run bun install --save-text-lockfile to write
+  bun.lock.`). It used to be skipped without a word, which read like a clean result.
+- Secrets: `secret.openrouter-key` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsk-or-v1-..."`).
+- Code: `code.sql-injection` now reports Kotlin string templates in a query
+  (`"SELECT id FROM users WHERE id = $id"`, `${id}`), in `.kt` and `.kts` files only. A positional
+  placeholder (`$1`) and an escaped `\$` are not templates and stay quiet.
+- Code: `code.sql-injection` now reports a Go query concatenated inside `db.Query`, `QueryRow` or
+  `Exec` with an escaped newline, tab or carriage return before the next keyword
+  (`db.Query("SELECT id\nFROM users WHERE id = " + id)`), as the `fmt.Sprintf` form already did.
+- Code: `code.sql-injection` now reports a Ruby query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = #{id}"`).
+- Code: `code.sql-injection` now reports a PHP query with an escaped newline, tab or carriage
+  return before the next keyword (`"SELECT id\nFROM users WHERE id = $id"`), in the interpolated
+  and the concatenated form.
+- Code: `code.sql-injection` now reports a C# interpolated query with an escaped newline, tab or
+  carriage return before the next keyword (`$"SELECT Id\nFROM Users WHERE Id = {id}"`), as the
+  concatenation form already did.
+- Config: `config.remote-script` no longer reports a trailing `#` comment that shows a `| sh`
+  shortcut after a safe command (`curl ... -o install.sh # or: curl ... | sh`), while still
+  reporting `#` inside quotes or words (`https://example.com/i.sh#v1`) and comments after the pipe.
+- Config: `config.remote-script` no longer reports a `#` comment line in shell and PowerShell
+  scripts, Dockerfiles and Makefiles (`# Usage: curl -fsSL https://example.com/install.sh | bash`),
+  as it already did in workflows.
+- Secrets: `secret.env-file` and `secret.env-example-value` no longer report file paths starting
+  with `/`, `./`, `../` or `~/` on variables ending in `_FILE`, `_PATH` or `_DIR` or named `PWD`
+  (`POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password`, `PRIVATE_KEY_PATH=./certs/server.key`,
+  `PWD=/srv/app/releases/current`), while still reporting non-path values and `/`-prefixed secrets
+  on other secret variables.
+- Code: `code.sql-injection` no longer reports JavaScript and TypeScript tagged templates
+  (``sql`SELECT * FROM users WHERE id = ${id}` ``, `Prisma.sql`, `prisma.$queryRaw`,
+  ``sql<Row[]>`...` ``). The tag receives the values apart from the query text and binds them.
+  An untagged template literal and a raw tag (`String.raw`, `sql.raw`, `sql.unsafe`) are still
+  reported.
+- Dependencies: `bun.lock` (bun's text lockfile, bun 1.2 and later) is read. A repository with
+  only that lockfile used to report `0 packages checked against OSV.dev`. Workspace, git, file
+  and tarball entries are skipped, like in the other lockfiles.
 - Secrets: `secret.hardcoded-password` no longer lets a placeholder-like value elsewhere on the
   line hide a real password. The placeholder check now only looks at the value right after the
   matched name, so `connect(user="testuser", password="...")` and
@@ -15,12 +81,21 @@
   while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.
 - Secrets: new rule `secret.prefect-api-key` (critical) for Prefect API keys (`pnu_` followed by 36
   letters and digits).
+- Secrets: new rule `secret.openrouter-key` (critical) for OpenRouter API keys (`sk-or-v1-` followed
+  by 64 lower-case hex characters).
+- Secrets: new rule `secret.newrelic-key` (critical) for New Relic user API keys (`NRAK-` followed
+  by 27 upper-case letters and digits).
+- Secrets: new rule `secret.flyio-token` (critical) for Fly.io access tokens (`fo1_` followed by 43
+  letters, digits, `_` or `-`).
 - Report: the summary line says `Scanned 1 file` and `1 package checked against OSV.dev` for a
   count of one; other counts stay plural.
 - Code: the JavaScript and Python patterns in `code.sql-injection` now also match escaped
   newlines, tabs and carriage returns (`\n`, `\t`, `\r`) inside quoted query strings
   (`db.query("SELECT id\nFROM users WHERE id = " + id)`,
   `cur.execute("SELECT id\nFROM users WHERE id = %s" % uid)`).
+- Code: the Java, Kotlin and C# concatenation patterns in `code.sql-injection` now also match
+  escaped newlines, tabs and carriage returns (`\n`, `\t`, `\r`) inside quoted query strings
+  (`"SELECT id\nFROM users WHERE id = " + id`).
 - Code: the Go `fmt.Sprintf` pattern in `code.sql-injection` now uses the same SQL clause keyword
   check (`SELECT ... FROM`, `INSERT INTO`, `UPDATE ... SET`, `DELETE FROM`) as the other SQL
   injection rules and also matches raw backtick query strings and escaped newlines or tabs

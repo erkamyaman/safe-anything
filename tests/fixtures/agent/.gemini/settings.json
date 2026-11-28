@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "remote-http": { "httpUrl": "http://mcp.acme-tools.io/mcp" },
+    "remote-https": { "httpUrl": "https://mcp.acme-tools.io/mcp" },
+    "local-http": { "httpUrl": "http://localhost:3000/mcp" }
+  }
+}

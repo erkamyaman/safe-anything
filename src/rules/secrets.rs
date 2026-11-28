@@ -107,6 +107,7 @@ const ENV_SECRET_LINE: &str = concat!(
 
 const ENV_PLACEHOLDER: &str = concat!(
     r"^[ \t]*(?:export[ \t]+)?(?:NEXT_PUBLIC|VITE|REACT_APP|EXPO_PUBLIC|NUXT_PUBLIC|GATSBY|VUE_APP|PUBLIC)_",
+    r#"|^[ \t]*(?:export[ \t]+)?(?:[A-Za-z0-9_]*_(?i:file|path|dir)|(?i:pwd))[ \t]*=[ \t]*["']?(?:/|\.\.?/|~/)"#,
     r"|^[ \t]*(?:export[ \t]+)?[A-Za-z0-9_]+[ \t]*=[ \t]*(?:",
     r#"(?i:["']?(?:[^ \t"']*(?:your|example|change|replace|placeholder|dummy|xxxx|\.\.\.|<)|sk_test_|pk_test_|(?-i:[a-z]+[-_][a-z]+[-_][a-z]+)))"#,
     r#"|"\*+"[ \t]*(?:#.*)?$"#,
@@ -347,6 +348,12 @@ pub static RULES: &[Rule] = &[
         "A Perplexity API key is written in the file."
     ),
     secret!(
+        "secret.openrouter-key",
+        Critical,
+        r"(?:\\[nrt]|\b)(sk-or-v1-[0-9a-f]{64})\b",
+        "An OpenRouter API key is written in the file."
+    ),
+    secret!(
         "secret.google-api-key",
         High,
         r"\bAIza[0-9A-Za-z_\-]{35}",
@@ -395,6 +402,12 @@ pub static RULES: &[Rule] = &[
         "A Heroku API key is written in the file."
     ),
     secret!(
+        "secret.flyio-token",
+        Critical,
+        r"(?:\\[nrt]|\b)(fo1_[A-Za-z0-9_\-]{43})(?:[^A-Za-z0-9_\-]|\z)",
+        "A Fly.io access token is written in the file."
+    ),
+    secret!(
         "secret.databricks-token",
         Critical,
         r"\bdapi[0-9a-f]{32}(?:-\d)?\b",
@@ -409,13 +422,13 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.linear-api-key",
         Critical,
-        r"\blin_api_[A-Za-z0-9]{40}\b",
+        r"(?:\\[nrt]|\b)(lin_api_[A-Za-z0-9]{40})\b",
         "A Linear API key is written in the file."
     ),
     secret!(
         "secret.prefect-api-key",
         Critical,
-        r"\bpnu_[A-Za-z0-9]{36}\b",
+        r"(?:\\[nrt]|\b)(pnu_[A-Za-z0-9]{36})\b",
         "A Prefect API key is written in the file."
     ),
     secret!(
@@ -427,8 +440,14 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.sentry-token",
         Critical,
-        r"\bsntryu_[0-9a-f]{64}\b",
+        r"(?:\\[nrt]|\b)(sntryu_[0-9a-f]{64})\b",
         "A Sentry user auth token is written in the file."
+    ),
+    secret!(
+        "secret.newrelic-key",
+        Critical,
+        r"(?:\\[nrt]|\b)(NRAK-[A-Z0-9]{27})\b",
+        "A New Relic user API key is written in the file."
     ),
     secret!(
         "secret.supabase-token",
@@ -865,6 +884,43 @@ mod tests {
                     .collect();
                 assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
                 assert_eq!(found[0].snippet, format!("{var}=Fake****"));
+                assert!(!found[0].snippet.contains(&s));
+            }
+        }
+    }
+
+    #[test]
+    fn env_secret_line_file_path_and_pwd_values() {
+        let s = ["Fake0000", "Value0000", "Q7mZ"].concat();
+        let slash_s = ["/", &s].concat();
+        for name in [".env", ".env.example"] {
+            for src in [
+                "POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password\n",
+                "PRIVATE_KEY_PATH=./certs/server.key\n",
+                "SECRET_KEY_DIR=../secrets/prod\n",
+                "API_TOKEN_FILE=\"~/secrets/api_token\"\n",
+                "PASS_FILE='/var/run/secrets/db_pass'\n",
+                "PWD=/srv/app/releases/current\n",
+            ] {
+                assert!(check(&FileInfo::new(name), src, false).is_empty(), "{src}");
+            }
+        }
+        for (name, rule) in [
+            (".env", "secret.env-file"),
+            (".env.example", "secret.env-example-value"),
+        ] {
+            for (var, val, masked) in [
+                ("DB_PASSWORD_FILE", &s, "Fake****"),
+                ("PWD", &s, "Fake****"),
+                ("DB_PASSWORD", &slash_s, "/Fak****"),
+            ] {
+                let src = format!("{var}={val}\n");
+                let found: Vec<_> = check(&FileInfo::new(name), &src, false)
+                    .into_iter()
+                    .filter(|f| f.rule == rule)
+                    .collect();
+                assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
+                assert_eq!(found[0].snippet, format!("{var}={masked}"));
                 assert!(!found[0].snippet.contains(&s));
             }
         }
