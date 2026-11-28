@@ -81,6 +81,10 @@ fn any_text(_: &FileInfo) -> bool {
     true
 }
 
+fn not_env(f: &FileInfo) -> bool {
+    !is_env(&f.name)
+}
+
 fn is_env_template(name: &str) -> bool {
     ["example", "sample", "template", "dist", "defaults"]
         .iter()
@@ -488,7 +492,7 @@ pub static RULES: &[Rule] = &[
         id: "secret.hardcoded-password",
         family: Family::Secret,
         severity: Severity::High,
-        files: any_text,
+        files: not_env,
         pattern: r#"(?i)\b(?:[a-z0-9]+_)*(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["']([^"'\s]{8,})["']"#,
         unless: Some(
             r#"(?i)\b(?:[a-z0-9]+_)*(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)\b["']?\s*[:=]\s*["'](?:[^"']*(?:\.\.\.|…)|(\$|changeme|password|secret|example|x{3,}|your[-_]|<|\$\{|\{\{|%\(|dummy|test|placeholder|redacted|\*{3,}|none|null))"#,
@@ -785,6 +789,33 @@ mod tests {
             let found = check(&FileInfo::new("app.py"), &src, false);
             assert!(found.is_empty(), "{src:?} => {found:#?}");
         }
+    }
+
+    #[test]
+    fn hardcoded_password_leaves_env_files_to_the_env_rules() {
+        let v = ["Zq7Wd0000", "Kx9Fake"].concat();
+        let src = format!("DB_PASSWORD=\"{v}\"\nMQTT_PASSWORD=\"a_secure_password\"\n");
+        for name in [
+            ".env",
+            ".env.example",
+            ".env.local",
+            "config/.env.production",
+        ] {
+            let hits: Vec<_> = check(&FileInfo::new(name), &src, false)
+                .into_iter()
+                .filter(|f| f.rule == "secret.hardcoded-password")
+                .collect();
+            assert!(hits.is_empty(), "{name} => {hits:#?}");
+        }
+        let hits = check(
+            &FileInfo::new("settings.env.py"),
+            &format!("DB_PASSWORD=\"{v}\"\n"),
+            false,
+        )
+        .into_iter()
+        .filter(|f| f.rule == "secret.hardcoded-password")
+        .count();
+        assert_eq!(hits, 1);
     }
 
     #[test]
