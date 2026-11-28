@@ -948,6 +948,17 @@ mod tests {
                 );
             }
         }
+        for s in [
+            r#"val q = s"SELECT id FROM users WHERE id = $id""#,
+            r#"val q = f"SELECT id FROM users WHERE id = $id%d""#,
+        ] {
+            for name in ["Repo.java", "Repo.groovy"] {
+                assert!(
+                    !sqli(name, s),
+                    "unexpected code.sql-injection in {name}: {s}"
+                );
+            }
+        }
     }
 
     #[test]
