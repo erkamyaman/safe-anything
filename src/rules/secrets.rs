@@ -308,7 +308,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.rubygems-token",
         Critical,
-        r"\brubygems_[0-9a-f]{48}\b",
+        r"(?:\\[nrt]|\b)(rubygems_[0-9a-f]{48})\b",
         "A RubyGems API key is written in the file."
     ),
     secret!(
