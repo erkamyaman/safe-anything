@@ -189,7 +189,7 @@ pub fn scan_files(root: &Path, include_tests: bool) -> Scanned {
     // A binary bun.lockb next to a text bun.lock has already been migrated:
     // the text lockfile was read, so naming the old one would be misleading.
     scanned.lockfiles_binary.retain(|rel| {
-        let sibling = base.join(rel).with_file_name("bun.lock");
+        let sibling = base.join(rel).with_file_name(deps::BUN_TEXT_LOCKFILE);
         !sibling.exists()
     });
     scanned.packages.sort();

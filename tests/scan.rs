@@ -370,12 +370,14 @@ fn binary_bun_lockfile_is_omitted_when_a_text_lockfile_sits_next_to_it() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("a")).unwrap();
     std::fs::create_dir_all(root.join("b")).unwrap();
-    std::fs::write(
-        root.join("a/bun.lock"),
-        r#"{"lockfileVersion":1,"workspaces":{},"packages":{}}"#,
-    )
-    .unwrap();
-    for name in ["a/bun.lockb", "b/bun.lockb"] {
+    for name in ["bun.lock", "a/bun.lock"] {
+        std::fs::write(
+            root.join(name),
+            r#"{"lockfileVersion":1,"workspaces":{},"packages":{}}"#,
+        )
+        .unwrap();
+    }
+    for name in ["bun.lockb", "a/bun.lockb", "b/bun.lockb"] {
         std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
     }
     let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
