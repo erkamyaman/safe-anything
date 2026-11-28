@@ -7,6 +7,9 @@
   bun.lock.`). It used to be skipped without a word, which read like a clean result.
 - Secrets: `secret.openrouter-key` now reports a key that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nsk-or-v1-..."`).
+- Secrets: `secret.sentry-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsntryu_..."`), the same as
+  `secret.openrouter-key` and `secret.newrelic-key` already do.
 - Code: `code.sql-injection` now reports Kotlin string templates in a query
   (`"SELECT id FROM users WHERE id = $id"`, `${id}`), in `.kt` and `.kts` files only. A positional
   placeholder (`$1`) and an escaped `\$` are not templates and stay quiet.
