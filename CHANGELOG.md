@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.rubygems-token` now reports a key that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nrubygems_..."`).
 - Secrets: `secret.grafana-token` now reports a token that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nglsa_..."`).
 - Secrets: `secret.supabase-token` now reports a token that comes right after an escaped newline,
