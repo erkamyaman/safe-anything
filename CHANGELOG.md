@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Secrets: `secret.dockerhub-token`, `secret.groq-key`, `secret.perplexity-key`,
+  `secret.mailgun-key`, `secret.sendgrid-key`, and `secret.digitalocean-token` now report tokens
+  that come right after an escaped newline, tab or carriage return in a quoted string
+  (`"line\ndckr_pat_..."`, `"line\ngsk_..."`, etc.).
 - Secrets: `secret.rubygems-token` now reports a key that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nrubygems_..."`).
 - Secrets: `secret.grafana-token` now reports a token that comes right after an escaped newline,
