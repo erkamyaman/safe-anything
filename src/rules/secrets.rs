@@ -294,7 +294,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.npm-token",
         Critical,
-        r"\bnpm_[A-Za-z0-9]{36}\b",
+        r"(?:\\[nrt]|\b)(npm_[A-Za-z0-9]{36})\b",
         "An npm access token is written in the file."
     ),
     secret!(
