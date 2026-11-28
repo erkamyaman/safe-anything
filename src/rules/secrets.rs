@@ -456,7 +456,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.supabase-token",
         Critical,
-        r"\bsbp_[0-9a-f]{40}\b",
+        r"(?:\\[nrt]|\b)(sbp_[0-9a-f]{40})\b",
         "A Supabase access token is written in the file."
     ),
     secret!(

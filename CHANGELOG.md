@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Secrets: `secret.supabase-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nsbp_..."`).
 - Secrets: `secret.pulumi-token` now reports a token that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\npul-..."`).
 - Secrets: `secret.npm-token` now reports a token that comes right after an escaped newline,
