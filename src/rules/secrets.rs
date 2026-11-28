@@ -458,7 +458,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.grafana-token",
         Critical,
-        r"\bglsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8}\b",
+        r"(?:\\[nrt]|\b)(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})\b",
         "A Grafana service account token is written in the file."
     ),
     secret!(
