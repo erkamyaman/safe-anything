@@ -208,6 +208,58 @@ fn sarif_output_for_code_scanning() {
 }
 
 #[test]
+fn sarif_rule_tags_carry_the_parent_cwe() {
+    let (_, out) = run(&[&fixture("code"), "--sarif", "--offline"]);
+    let sarif: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let rules = sarif["runs"][0]["tool"]["driver"]["rules"]
+        .as_array()
+        .unwrap();
+    let tags = |id: &str| -> Vec<String> {
+        let rule = rules
+            .iter()
+            .find(|d| d["id"] == id)
+            .unwrap_or_else(|| panic!("{id} in the code fixture"));
+        rule["properties"]["tags"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t.as_str().unwrap().to_string())
+            .collect()
+    };
+    for (id, cwes) in [
+        ("code.eval", ["CWE-95", "CWE-94"]),
+        ("code.insecure-random", ["CWE-338", "CWE-330"]),
+    ] {
+        let t = tags(id);
+        for cwe in cwes {
+            assert!(t.iter().any(|x| x == cwe), "{id}: {t:?}");
+        }
+    }
+    let t = tags("code.sql-injection");
+    assert_eq!(
+        t.iter().filter(|x| x.starts_with("CWE-")).count(),
+        1,
+        "{t:?}"
+    );
+
+    let (_, out) = run(&["--list-rules", "--json"]);
+    let list: serde_json::Value = serde_json::from_str(&out).unwrap();
+    let rule = |id: &str| {
+        list.as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(rule("code.eval")["cwe"], "CWE-95");
+    assert_eq!(rule("code.eval")["cwe_parent"], "CWE-94");
+    assert_eq!(rule("code.insecure-random")["cwe"], "CWE-338");
+    assert_eq!(rule("code.insecure-random")["cwe_parent"], "CWE-330");
+    assert!(rule("code.sql-injection").get("cwe_parent").is_none());
+}
+
+#[test]
 fn sarif_rule_help_has_the_fix() {
     let (_, out) = run(&[&fixture("agent"), "--sarif", "--offline"]);
     let sarif: serde_json::Value = serde_json::from_str(&out).unwrap();

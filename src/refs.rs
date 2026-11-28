@@ -1,5 +1,6 @@
 pub struct Refs {
     pub cwe: &'static str,
+    pub cwe_parent: Option<&'static str>,
     pub owasp: &'static str,
     pub learn_more: &'static str,
 }
@@ -8,6 +9,7 @@ macro_rules! r {
     ($cwe:literal, $owasp:literal, $sheet:literal) => {
         Refs {
             cwe: $cwe,
+            cwe_parent: None,
             owasp: $owasp,
             learn_more: concat!(
                 "https://cheatsheetseries.owasp.org/cheatsheets/",
@@ -19,6 +21,7 @@ macro_rules! r {
     ($cwe:literal, $owasp:literal, url $url:literal) => {
         Refs {
             cwe: $cwe,
+            cwe_parent: None,
             owasp: $owasp,
             learn_more: $url,
         }
@@ -39,11 +42,14 @@ pub fn of(id: &str) -> Refs {
                 "Cross_Site_Scripting_Prevention_Cheat_Sheet"
             )
         }
-        "code.eval" => r!(
-            "CWE-95",
-            "A03:2021 Injection",
-            "Injection_Prevention_Cheat_Sheet"
-        ),
+        "code.eval" => Refs {
+            cwe_parent: Some("CWE-94"),
+            ..r!(
+                "CWE-95",
+                "A03:2021 Injection",
+                "Injection_Prevention_Cheat_Sheet"
+            )
+        },
         "code.command-injection" => r!(
             "CWE-78",
             "A03:2021 Injection",
@@ -99,11 +105,14 @@ pub fn of(id: &str) -> Refs {
             "A05:2021 Security Misconfiguration",
             "HTML5_Security_Cheat_Sheet"
         ),
-        "code.insecure-random" => r!(
-            "CWE-338",
-            "A02:2021 Cryptographic Failures",
-            "Cryptographic_Storage_Cheat_Sheet"
-        ),
+        "code.insecure-random" => Refs {
+            cwe_parent: Some("CWE-330"),
+            ..r!(
+                "CWE-338",
+                "A02:2021 Cryptographic Failures",
+                "Cryptographic_Storage_Cheat_Sheet"
+            )
+        },
         "code.debug-enabled" => r!(
             "CWE-489",
             "A05:2021 Security Misconfiguration",

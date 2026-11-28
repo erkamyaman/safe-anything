@@ -50,7 +50,7 @@ macro_rules! kw {
     () => {
         kw!(".", r"\s")
     };
-    ($ch:literal, $ws:literal) => {
+    ($ch:expr, $ws:expr) => {
         concat!(
             r"(?i:select",
             $ws,
@@ -76,7 +76,7 @@ macro_rules! kw {
 
 macro_rules! go_verb {
     () => {
-        r"%[+#\- 0]*(?:\d+|\*)?(?:\.(?:\d+|\*))?[sdvq]"
+        r"%[+#\- 0]*(?:\d+|\*)?(?:\.(?:\d+|\*))?[svq]"
     };
 }
 
@@ -113,6 +113,85 @@ macro_rules! go_sqli_body {
     };
 }
 
+macro_rules! dq {
+    () => {
+        r#"(?:[^"\\\n]|\\.)"#
+    };
+    (multiline) => {
+        r#"(?:[^"\\]|\\.)"#
+    };
+}
+
+macro_rules! sq {
+    () => {
+        r#"(?:[^'\\\n]|\\.)"#
+    };
+    (multiline) => {
+        r#"(?:[^'\\]|\\.)"#
+    };
+}
+
+macro_rules! esc_ws {
+    () => {
+        r"(?:\s|\\[nrt])"
+    };
+}
+
+macro_rules! sql_op {
+    () => {
+        r"(?:[=<>]|\b(?i:like|in)\b)"
+    };
+}
+
+macro_rules! js_sql_clause {
+    () => {
+        r"\.(?:whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|selectRaw|fromRaw|raw|literal|where|andWhere|orWhere|having|andHaving|orHaving)"
+    };
+}
+
+macro_rules! sql_concat {
+    ($dq:expr, $sq:expr, $join:expr, $value:expr) => {
+        concat!(
+            r#""\s*"#,
+            kw!(dq!(), esc_ws!()),
+            $dq,
+            r#"*"\s*"#,
+            $join,
+            r"\s*",
+            $value,
+            r#"|'\s*"#,
+            kw!(sq!(), esc_ws!()),
+            $sq,
+            r#"*'\s*"#,
+            $join,
+            r"\s*",
+            $value
+        )
+    };
+}
+
+macro_rules! sql_clause_concat {
+    ($methods:expr, $dq:expr, $sq:expr, $join:expr, $value:expr) => {
+        concat!(
+            $methods,
+            r#"\(\s*(?:""#,
+            $dq,
+            "*?",
+            sql_op!(),
+            $dq,
+            r#"*"|'"#,
+            $sq,
+            "*?",
+            sql_op!(),
+            $sq,
+            r#"*')\s*"#,
+            $join,
+            r"\s*",
+            $value
+        )
+    };
+}
+
 macro_rules! rule {
     ($id:literal, $sev:ident, $files:ident, $pat:expr, $unless:expr, $msg:expr, $fix:expr) => {
         Rule {
@@ -130,6 +209,11 @@ macro_rules! rule {
 
 const SQLI_MSG: &str = "A SQL query is built from variables by string formatting, so input can change the query (SQL injection).";
 const SQLI_FIX: &str = "Use parameterized queries (placeholders like ?, $1 or %s passed separately) or the ORM's query builder.";
+const SQLI_SAFE_JS: &str =
+    r"\b(?:parseInt|parseFloat|Number|escapeIdentifier|escapeLiteral|escapeId)\s*\(|\.escape\s*\(";
+const SQLI_SAFE_GO: &str = r#"\bstrconv\.(?:Itoa|FormatInt|FormatUint)\(|\bpq\.Quote(?:Identifier|Literal)\(|\bpgx\.Identifier\b|\bstrings\.ReplaceAll\([^,]+,\s*(?:`"`|"\\"")\s*,\s*(?:`""`|"\\"\\"")\s*\)"#;
+const SQLI_SAFE_PHP: &str = r"->quote\s*\(|\bquote(?:Single)?Identifier\s*\(";
+const SQLI_SAFE_RB: &str = r"\bquote(?:_column_name|_table_name|_identifier)?\s*\(|\.to_i\b|\bInteger\s*\(|\bsanitize_sql\w*\s*\(";
 const CMD_MSG: &str =
     "A shell command is built from variables, so input can run other commands (command injection).";
 const CMD_FIX: &str = "Call the program directly with an argument list (no shell), and validate the input against an allow list.";
@@ -274,11 +358,19 @@ pub static RULES: &[Rule] = &[
         concat!(
             r#"(?:(?m:^)|[^\w$>\n]|=>|\.(?:raw|unsafe))`\s*"#,
             kw!(),
-            r#"[^`]*\$\{|["']\s*"#,
-            kw!(".", r"(?:\s|\\[nrt])"),
-            r#"[^"']*["']\s*\+\s*[A-Za-z_$]"#
+            r#"[^`]*\$\{|"#,
+            sql_concat!(dq!(), sq!(), r"\+", r"[A-Za-z_$]"),
+            "|",
+            sql_clause_concat!(js_sql_clause!(), dq!(), sq!(), r"\+", r"[A-Za-z_$]"),
+            "|",
+            js_sql_clause!(),
+            r"\(\s*`[^`]*?(?:",
+            sql_op!(),
+            r"[^`]*?\$\{|\$\{[^`]*?",
+            sql_op!(),
+            ")"
         ),
-        None,
+        Some(SQLI_SAFE_JS),
         SQLI_MSG,
         SQLI_FIX
     ),
@@ -312,7 +404,7 @@ pub static RULES: &[Rule] = &[
             go_sqli_body!("[^`]", r"\s"),
             ")"
         ),
-        None,
+        Some(SQLI_SAFE_GO),
         SQLI_MSG,
         SQLI_FIX
     ),
@@ -321,13 +413,20 @@ pub static RULES: &[Rule] = &[
         High,
         go,
         concat!(
-            r#"\.(?:Query|QueryRow|Exec)(?:\(|Context\(\s*[\w.]+(?:\(\))?\s*,)\s*(?:"\s*"#,
-            kw!(".", r"(?:\s|\\[nrt])"),
-            r#"[^"]*"|`\s*"#,
-            kw!(),
-            r#"[^`]*`)\s*\+\s*[A-Za-z_]"#
+            r#""\s*"#,
+            kw!(dq!(), esc_ws!()),
+            dq!(),
+            r#"*"\s*\+\s*[A-Za-z_]|`\s*"#,
+            kw!("[^`]", r"\s"),
+            r#"[^`]*`\s*\+\s*[A-Za-z_]|"#,
+            r#"\.(?:Where|Or|Not|Having|Joins|Raw|Exec|Order|Group)\(\s*""#,
+            dq!(),
+            "*?",
+            sql_op!(),
+            dq!(),
+            r#"*"\s*\+\s*[A-Za-z_]"#
         ),
-        None,
+        Some(SQLI_SAFE_GO),
         SQLI_MSG,
         SQLI_FIX
     ),
@@ -382,13 +481,26 @@ pub static RULES: &[Rule] = &[
         High,
         php,
         concat!(
-            r#"["']\s*"#,
-            kw!(".", r"(?:\s|\\[nrt])"),
-            r#"[^"']*["']\s*\.\s*\$|"\s*"#,
-            kw!(".", r"(?:\s|\\[nrt])"),
-            r#"[^"]*\$[A-Za-z_{]"#
+            sql_concat!(
+                dq!(multiline),
+                sq!(multiline),
+                r"\.",
+                r"(?:\(\s*string\s*\)\s*)?\$"
+            ),
+            "|",
+            sql_clause_concat!(
+                r"(?:->|::)(?:whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|selectRaw|raw|where|andWhere|orWhere|having|andHaving|orHaving)",
+                dq!(multiline),
+                sq!(multiline),
+                r"\.",
+                r"(?:\(\s*string\s*\)\s*)?\$"
+            ),
+            r#"|"\s*"#,
+            kw!(dq!(), esc_ws!()),
+            dq!(multiline),
+            r"*?\$[A-Za-z_{]"
         ),
-        None,
+        Some(SQLI_SAFE_PHP),
         SQLI_MSG,
         SQLI_FIX
     ),
@@ -398,10 +510,20 @@ pub static RULES: &[Rule] = &[
         rb,
         concat!(
             r#"\.(?:where|find_by_sql|order|group|having|joins|select|pluck|exists\?)\(\s*"[^"]*#\{|"\s*"#,
-            kw!(".", r"(?:\s|\\[nrt])"),
-            r#"[^"]*#\{"#
+            kw!(dq!(), esc_ws!()),
+            dq!(multiline),
+            r"*?#\{|",
+            sql_concat!(dq!(multiline), sq!(multiline), r"\+", r"[A-Za-z_@]"),
+            "|",
+            sql_clause_concat!(
+                r"\.(?:where|not|or|having|order|group|joins)",
+                dq!(multiline),
+                sq!(multiline),
+                r"\+",
+                r"[A-Za-z_@]"
+            )
         ),
-        None,
+        Some(SQLI_SAFE_RB),
         SQLI_MSG,
         SQLI_FIX
     ),
@@ -755,6 +877,76 @@ mod tests {
             r#"rows, _ := db.Query(`SELECT id\nFROM users WHERE id = ` + id)"#,
         ] {
             assert!(!sqli(s), "unexpected code.sql-injection for: {s}");
+        }
+    }
+
+    #[test]
+    fn sql_injection_concat_reads_whole_string_literals() {
+        let sqli = |name: &str, s: &str| {
+            check(&FileInfo::new(name), s, false)
+                .iter()
+                .any(|x| x.rule == "code.sql-injection")
+        };
+        for (name, s) in [
+            (
+                "db.js",
+                r#"db.query("SELECT * FROM users WHERE name = '" + name + "'");"#,
+            ),
+            (
+                "db.js",
+                r"db.query('SELECT * FROM users WHERE name = \'' + name + '\'');",
+            ),
+            (
+                "db.ts",
+                r#"db.query("SELECT * FROM users WHERE kind = \"a\" AND name = '" + name + "'");"#,
+            ),
+            (
+                "db.php",
+                r"$sql = 'SELECT * FROM users WHERE id = \'' . $id . '\'';",
+            ),
+            (
+                "db.php",
+                "$sql = \"SELECT * FROM users\n    WHERE id = '\" . $id . \"'\";",
+            ),
+            ("db.rb", r"sql = 'SELECT * FROM users WHERE id = ' + @id"),
+            (
+                "db.go",
+                "q := `SELECT * FROM users WHERE name = '` + name + \"'\"",
+            ),
+        ] {
+            assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
+        }
+        for (name, s) in [
+            (
+                "db.js",
+                r#"db.query("SELECT * FROM users WHERE name = '" + "admin" + "'");"#,
+            ),
+            ("db.js", r#"const sel = "a[name='" + key + "']";"#),
+            (
+                "db.php",
+                r"$sql = 'SELECT * FROM users WHERE id = ' . (int)$id;",
+            ),
+            (
+                "db.php",
+                r"$sql = 'SELECT * FROM users WHERE id = ' . intval($id);",
+            ),
+            (
+                "db.rb",
+                r#"sql = "SELECT * FROM users WHERE id = " + id.to_i.to_s"#,
+            ),
+            (
+                "db.go",
+                r#"q := fmt.Sprintf("SELECT * FROM users LIMIT %d OFFSET %d", limit, offset)"#,
+            ),
+            (
+                "db.go",
+                r#"q := "SELECT * FROM users WHERE id = " + strconv.FormatInt(id, 10)"#,
+            ),
+        ] {
+            assert!(
+                !sqli(name, s),
+                "unexpected code.sql-injection in {name}: {s}"
+            );
         }
     }
 

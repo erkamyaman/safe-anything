@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now reads each string literal to its real closing quote in
+  JavaScript, TypeScript, PHP, Ruby and Go, so `"... WHERE name = '" + name + "'"` and PHP
+  `'... WHERE id = \'' . $id . '\''` are reported. It also reports Ruby `+` concatenation, Go
+  concatenation outside `Query`/`Exec` (`db.Prepare`, gorm `Raw`), PHP `(string)$x` casts, and
+  concatenated clauses passed to `whereRaw`, `where`, `literal`, `raw` and the like.
+  Placeholders, constants, numeric casts (`Number()`, `parseInt()`, `.to_i`, `strconv.Itoa`),
+  Go `%d` and known quoting helpers (`escapeIdentifier`, `escapeId`, `quoteIdentifier`,
+  `quote_column_name`, `pq.QuoteIdentifier`) stay quiet.
+- SARIF: `code.eval` rules are also tagged with the parent CWE-94 and `code.insecure-random` with
+  CWE-330, next to CWE-95 and CWE-338. `--list-rules --json` has them as `cwe_parent`; `cwe` is
+  unchanged.
 - Secrets: `secret.rubygems-token` now reports a key that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nrubygems_..."`).
 - Secrets: `secret.grafana-token` now reports a token that comes right after an escaped newline,

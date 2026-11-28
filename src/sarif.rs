@@ -42,6 +42,9 @@ pub fn render(report: &Report) -> Value {
         .into_iter()
         .filter(|r| used.contains(r.id))
         .map(|r| {
+            let mut tags = vec!["security", r.family.as_str(), r.cwe];
+            tags.extend(r.cwe_parent);
+            tags.push(r.owasp);
             json!({
                 "id": r.id,
                 "name": r.id,
@@ -60,7 +63,7 @@ pub fn render(report: &Report) -> Value {
                 "helpUri": r.learn_more,
                 "defaultConfiguration": { "level": level(r.severity) },
                 "properties": {
-                    "tags": ["security", r.family.as_str(), r.cwe, r.owasp],
+                    "tags": tags,
                     "security-severity": score(r.severity),
                 },
             })

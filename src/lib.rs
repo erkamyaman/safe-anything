@@ -20,6 +20,8 @@ pub struct RuleInfo {
     pub message: &'static str,
     pub fix: &'static str,
     pub cwe: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwe_parent: Option<&'static str>,
     pub owasp: &'static str,
     pub learn_more: &'static str,
 }
@@ -40,6 +42,7 @@ impl RuleInfo {
             message,
             fix,
             cwe: r.cwe,
+            cwe_parent: r.cwe_parent,
             owasp: r.owasp,
             learn_more: r.learn_more,
         }
