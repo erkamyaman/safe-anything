@@ -31,4 +31,4 @@ by this repository's tests (a fixture per family with safe look-alikes that must
 
 - Patterns, not data flow: a command built in one statement and run in another is not flagged.
 - Each finding sees one line; multi-line SQL strings are matched only on the line the keyword is on.
-- No Swift, Kotlin or Rust code rules yet (beyond mobile storage and WebView checks).
+- No Swift or Rust code rules yet (beyond mobile storage and WebView checks). Kotlin gets the JVM rules (SQL injection, command injection, unsafe deserialization) and `code.sql-injection` also reports string templates in a query.
