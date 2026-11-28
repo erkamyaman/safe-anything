@@ -97,7 +97,7 @@ Every rule safe-anything checks, generated from `safe-anything --list-rules --js
 | [`agent.unrestricted-shell`](https://genai.owasp.org/llmrisk/llm062025-excessive-agency/) | high | [CWE-250](https://cwe.mitre.org/data/definitions/250.html) | LLM06:2025 Excessive Agency | Every shell command is pre-approved, so the agent can run anything without asking. |
 | [`agent.mcp-unpinned`](https://genai.owasp.org/llmrisk/llm032025-supply-chain/) | medium | [CWE-1357](https://cwe.mitre.org/data/definitions/1357.html) | LLM03:2025 Supply Chain | An MCP server is started from a package or image with no pinned version. |
 | [`agent.mcp-plaintext-secret`](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) | high | [CWE-798](https://cwe.mitre.org/data/definitions/798.html) | LLM02:2025 Sensitive Information Disclosure | An MCP server's token or key is written in plain text in the config. |
-| [`agent.mcp-insecure-url`](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html) | high | [CWE-319](https://cwe.mitre.org/data/definitions/319.html) | A02:2021 Cryptographic Failures | A remote MCP server is reached over plain HTTP. |
+| [`agent.mcp-insecure-url`](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html) | high | [CWE-319](https://cwe.mitre.org/data/definitions/319.html) | A02:2021 Cryptographic Failures | A remote MCP server is reached over plain HTTP or WebSocket. |
 
 ## Mobile (9)
 

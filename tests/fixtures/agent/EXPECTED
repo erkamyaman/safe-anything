@@ -63,3 +63,6 @@ cline_mcp_settings.json:4 agent.mcp-insecure-url
 .config/zed/settings.json:8 agent.mcp-unpinned
 .mcp.json:89 agent.mcp-insecure-url
 .mcp.json:90 agent.mcp-insecure-url
+.mcp.json:94 agent.mcp-insecure-url
+.mcp.json:97 agent.mcp-insecure-url
+.gemini/settings.json:3 agent.mcp-insecure-url

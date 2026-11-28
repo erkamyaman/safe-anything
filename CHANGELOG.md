@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Agent: `agent.mcp-insecure-url` now also checks Gemini CLI's `httpUrl` field and plain
+  WebSocket (`ws://`) URLs, strips RFC 3986 userinfo (`user:pass@`) before checking the host so
+  URLs like `http://localhost:pass@evil.example` and `http://[::1]@evil.example` do not look local,
+  and treats `localhost` case-insensitively and before `?` or `#`.
 - Config: `config.remote-script` now reports a download piped into a shell that is named by its
   path or started through `env` (`| /bin/bash`, `| /usr/bin/env bash`, `| env sh`), including
   `sudo /bin/bash`.
