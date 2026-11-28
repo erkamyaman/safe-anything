@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Code: `code.sql-injection` now also reports Scala triple-quoted interpolations on one line
+  (`s"""SELECT id FROM users WHERE id = $id"""`), while `sql"""..."""` stays quiet.
 - Agent: `agent.mcp-insecure-url` now also checks Gemini CLI's `httpUrl` field and plain
   WebSocket (`ws://`) URLs, strips RFC 3986 userinfo (`user:pass@`) before checking the host so
   URLs like `http://localhost:pass@evil.example` and `http://[::1]@evil.example` do not look local,
