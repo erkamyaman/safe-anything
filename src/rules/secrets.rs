@@ -166,14 +166,21 @@ const AWS_SECRET_KEY: &str = concat!(
     r#"[ \t]{0,8}["'`]?([A-Za-z0-9/+]{40})"#,
 );
 
-/// Whether a matched value can be a secret for the rule. Only `secret.aws-secret-key` is checked:
-/// its value has no prefix, so placeholders and other 40-character strings have to be told apart
-/// by the value alone, and its pattern stops after the 40 characters, so `after` (the text that
-/// follows the match) must not go on with another base64 character.
+/// Whether a matched value can be a secret for the rule. `secret.aws-secret-key` has no prefix so
+/// its value and following character are checked here; `secret.dockerhub-token` and
+/// `secret.sendgrid-key` check their trailing boundary here instead of consuming a trailing
+/// character in the regex so adjacent tokens separated by `\n` both match and redact.
 pub fn plausible(id: &str, value: Option<&str>, after: &str) -> bool {
-    id != "secret.aws-secret-key"
-        || (value.is_some_and(plausible_aws_secret)
-            && !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "/+=".contains(c)))
+    match id {
+        "secret.aws-secret-key" => {
+            value.is_some_and(plausible_aws_secret)
+                && !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "/+=".contains(c))
+        }
+        "secret.dockerhub-token" | "secret.sendgrid-key" => {
+            !after.starts_with(|c: char| c.is_ascii_alphanumeric() || "_-".contains(c))
+        }
+        _ => true,
+    }
 }
 
 /// Words that read as a name or a path: a first word in small letters, then words that start
@@ -318,7 +325,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.dockerhub-token",
         Critical,
-        r"\b(dckr_pat_[A-Za-z0-9_\-]{27})(?:[^A-Za-z0-9_\-]|\z)",
+        r"(?:\\[nrt]|\b)(dckr_pat_[A-Za-z0-9_\-]{27})",
         "A Docker Hub personal access token is written in the file."
     ),
     secret!(
@@ -342,13 +349,13 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.groq-key",
         Critical,
-        r"\bgsk_[A-Za-z0-9]{52}\b",
+        r"(?:\\[nrt]|\b)(gsk_[A-Za-z0-9]{52})\b",
         "A Groq API key is written in the file."
     ),
     secret!(
         "secret.perplexity-key",
         Critical,
-        r"\bpplx-[A-Za-z0-9]{48}\b",
+        r"(?:\\[nrt]|\b)(pplx-[A-Za-z0-9]{48})\b",
         "A Perplexity API key is written in the file."
     ),
     secret!(
@@ -378,13 +385,13 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.mailgun-key",
         Critical,
-        r"\bkey-[0-9a-f]{32}\b",
+        r"(?:\\[nrt]|\b)(key-[0-9a-f]{32})\b",
         "A Mailgun API key is written in the file."
     ),
     secret!(
         "secret.sendgrid-key",
         Critical,
-        r"\b(SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43})(?:[^A-Za-z0-9_\-]|\z)",
+        r"(?:\\[nrt]|\b)(SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43})",
         "A SendGrid API key is written in the file."
     ),
     secret!(
@@ -396,7 +403,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.digitalocean-token",
         Critical,
-        r"\bdo[opr]_v1_[a-f0-9]{64}\b",
+        r"(?:\\[nrt]|\b)(do[opr]_v1_[a-f0-9]{64})\b",
         "A DigitalOcean token is written in the file."
     ),
     secret!(
@@ -953,6 +960,129 @@ mod tests {
                 assert_eq!(found.len(), 1, "{name} {src:?} => {found:#?}");
                 assert_eq!(found[0].snippet, format!("{var}={masked}"));
                 assert!(!found[0].snippet.contains(&s));
+            }
+        }
+    }
+
+    #[test]
+    fn provider_tokens_after_json_escape() {
+        let cases: &[(&str, String, String, &str)] = &[
+            (
+                "secret.dockerhub-token",
+                [
+                    "dckr",
+                    "_pat_",
+                    &"Q7mZ2xK9pL4vR8tN3wB6yH1cF5".repeat(2)[..26],
+                    "-",
+                ]
+                .concat(),
+                ["dckr", "_pat_", "short123"].concat(),
+                "a",
+            ),
+            (
+                "secret.groq-key",
+                [
+                    "gs",
+                    "k_",
+                    &"Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG".repeat(2)[..52],
+                ]
+                .concat(),
+                ["gs", "k_", "short123"].concat(),
+                "a",
+            ),
+            (
+                "secret.perplexity-key",
+                [
+                    "pp",
+                    "lx-",
+                    &"Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG".repeat(2)[..48],
+                ]
+                .concat(),
+                ["pp", "lx-", "short123"].concat(),
+                "a",
+            ),
+            (
+                "secret.mailgun-key",
+                ["ke", "y-", &"a3f91c07d5e284b6".repeat(2)].concat(),
+                ["ke", "y-", "0123abcd"].concat(),
+                "a",
+            ),
+            (
+                "secret.sendgrid-key",
+                [
+                    "S",
+                    "G.",
+                    &"Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG"[..22],
+                    ".",
+                    &"Q7mZ2xK9pL4vR8tN3wB6yH1cF5jD0sG".repeat(2)[..43],
+                ]
+                .concat(),
+                ["S", "G.", "short.short"].concat(),
+                "a",
+            ),
+            (
+                "secret.digitalocean-token",
+                ["do", "p_v1_", &"a3f91c07d5e284b6".repeat(4)].concat(),
+                ["do", "p_v1_", "0123abcd"].concat(),
+                "a",
+            ),
+        ];
+
+        for (rule, token, short, extra) in cases {
+            let hits = |src: &str| -> Vec<_> {
+                check(&FileInfo::new("cfg.json"), src, false)
+                    .into_iter()
+                    .filter(|f| f.rule == *rule)
+                    .collect()
+            };
+            for esc in [r"\n", r"\r", r"\t"] {
+                let src = format!(r#"{{"note":"line{esc}{token}"}}"#);
+                let found = hits(&src);
+                assert_eq!(found.len(), 1, "{rule} {src} => {found:#?}");
+                assert!(
+                    !found[0].snippet.contains(token),
+                    "{rule} leaked in snippet"
+                );
+                // Capture group 1 must keep the escape sequence out of the masked value.
+                assert!(
+                    found[0].snippet.contains(&format!("line{esc}")),
+                    "{rule} swallowed escape in snippet: {}",
+                    found[0].snippet
+                );
+            }
+            for src in [
+                format!(r#"{{"note":"line\n{short}"}}"#),
+                format!(r#"{{"note":"my{token}"}}"#),
+                format!(r#"{{"note":"line\n{token}{extra}"}}"#),
+            ] {
+                assert!(hits(&src).is_empty(), "{rule} false positive on {src}");
+            }
+            // Two adjacent tokens separated by an escaped newline must both be found and redacted
+            // (trailing boundary checks must not consume the `\` starting the second `\n`).
+            let pair = format!(r#"{{"note":"{token}\n{token}"}}"#);
+            let pair_hits = hits(&pair);
+            assert!(
+                !pair_hits.is_empty(),
+                "{rule} missed adjacent tokens in {pair}"
+            );
+            for f in &pair_hits {
+                assert!(
+                    !f.snippet.contains(token),
+                    "{rule} leaked second adjacent token in snippet: {}",
+                    f.snippet
+                );
+            }
+            // A rejected prefix match (e.g. `dckr_pat_old-` overlapping a real token) must
+            // resume right after the rejected start so the real token is still caught and masked.
+            if *rule == "secret.dockerhub-token" {
+                let overlapped = format!(r#"{{"note":"dckr_pat_old-{token}"}}"#);
+                let found = hits(&overlapped);
+                assert_eq!(found.len(), 1, "{rule} missed overlapped token: {found:#?}");
+                assert!(
+                    !found[0].snippet.contains(token),
+                    "{rule} leaked overlapped token in snippet: {}",
+                    found[0].snippet
+                );
             }
         }
     }
