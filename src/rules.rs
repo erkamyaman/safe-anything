@@ -1177,7 +1177,9 @@ mod tests {
         let pub_sec = ["VITE", "_ADMIN_SECRET"].concat();
         let overlap_public = format!("{pub_sec}=\"{gh1}\"\n");
         let found = check(&FileInfo::new("app.js"), &overlap_public, false);
-        assert_eq!(found.len(), 2);
+        // The name-only public rule, the GitHub token and `secret.hardcoded-password`
+        // (the name ends in `_SECRET`).
+        assert_eq!(found.len(), 3);
         for f in &found {
             assert_eq!(f.snippet, format!("{pub_sec}****"));
         }
@@ -1378,12 +1380,16 @@ mod tests {
             "{{\"mcpServers\":{{\"s\":{{\"env\":{{\"API_TOKEN\":\"{short_mb}\",\"DB_PASSWORD\":\"{long_mb}\"}}}}}}}}\n"
         );
         let found = check(&FileInfo::new(".mcp.json"), &prefix_leak_mcp, false);
-        assert_eq!(found.len(), 1);
-        assert!(
-            !found[0].snippet.contains(&short_mb),
-            "short multi-byte secret leaked via another secret's prefix: {}",
-            found[0].snippet
-        );
+        // `agent.mcp-plaintext-secret`, plus `secret.hardcoded-password` for `DB_PASSWORD`.
+        assert_eq!(found.len(), 2);
+        for f in &found {
+            assert!(
+                !f.snippet.contains(&short_mb),
+                "short multi-byte secret leaked via another secret's prefix in {}: {}",
+                f.rule,
+                f.snippet
+            );
+        }
 
         // Multi-line password assignment also masks a copy on the assignment's first line.
         let multiline_pw = format!("log(\"{pass}\"); password =\n  \"{pass}\";\n");
