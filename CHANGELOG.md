@@ -4,6 +4,12 @@
 
 - Secrets: `secret.supabase-token` now reports a token that comes right after an escaped newline,
   tab or carriage return in a quoted string (`"line\nsbp_..."`).
+- Secrets: `secret.pulumi-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\npul-..."`).
+- Secrets: `secret.npm-token` now reports a token that comes right after an escaped newline,
+  tab or carriage return in a quoted string (`"line\nnpm_..."`).
+- Code: `code.sql-injection` now also reports Scala triple-quoted interpolations on one line
+  (`s"""SELECT id FROM users WHERE id = $id"""`), while `sql"""..."""` stays quiet.
 - Agent: `agent.mcp-insecure-url` now also checks Gemini CLI's `httpUrl` field and plain
   WebSocket (`ws://`) URLs, strips RFC 3986 userinfo (`user:pass@`) before checking the host so
   URLs like `http://localhost:pass@evil.example` and `http://[::1]@evil.example` do not look local,
@@ -75,6 +81,12 @@
   matched name, so `connect(user="testuser", password="...")` and
   `{"env": "none", "password": "..."}` are reported, while a placeholder in the password's own
   value stays quiet.
+- Secrets: `secret.hardcoded-password` now also matches names where the secret word follows
+  `_`-separated words (`db_password`, `ADMIN_PWD`, `stripe_api_key`). The word still has to end
+  the name, so `password_hash` and `api_keys_count` stay quiet. It no longer runs on `.env` and
+  `.env.*` files, which `secret.env-file` and `secret.env-example-value` already cover, so a
+  committed `.env` is reported once and placeholders in `.env.example` stay quiet (#188, #195 by
+  @pranavarya007).
 - Secrets: `secret.env-file` and `secret.env-example-value` now also match variable names where
   `PASS` or `PWD` is a whole `_`-separated word (`DB_PASS`, `SMTP_PASS`, `PASS_FILE`, `MYSQL_PWD`),
   while keeping names like `PASSPORT_ID`, `BYPASS_CACHE` and `COMPASS_URL` quiet.

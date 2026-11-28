@@ -359,17 +359,17 @@ pub static RULES: &[Rule] = &[
         SQLI_MSG,
         SQLI_FIX
     ),
-    // Scala `s` and `f` interpolations (`s"... $id"`, `s"... ${id}"`). Scala
-    // files only: in Java and Groovy a `$` inside a string is just a character.
-    // The word boundary keeps the `sql"..."` interpolator (Slick, doobie),
-    // which binds its holes as parameters, quiet, and an escaped `\$` is
-    // skipped.
+    // Scala `s` and `f` interpolations (`s"... $id"`, `s"... ${id}"`), also
+    // triple-quoted (`s"""..."""`). Scala files only: in Java and Groovy a `$`
+    // inside a string is just a character. The word boundary keeps the
+    // `sql"..."` interpolator (Slick, doobie), which binds its holes as
+    // parameters, quiet, and an escaped `\$` is skipped.
     rule!(
         "code.sql-injection",
         High,
         scala,
         concat!(
-            r#"\b[sf]"\s*"#,
+            r#"\b[sf]"(?:"")?\s*"#,
             kw!(".", r"(?:\s|\\[nrt])"),
             r#"(?:[^"\\]|\\.)*?\$\{?[A-Za-z_]"#
         ),
@@ -927,6 +927,10 @@ mod tests {
                 r#"val q = f"SELECT id FROM users WHERE id = $id%d""#,
                 // A positional placeholder first, then a hole.
                 r#"val q = s"SELECT id FROM users WHERE a = $1 AND b = $name""#,
+                // Triple-quoted strings, so quotes inside need no escaping.
+                r#"val q = s"""SELECT id FROM users WHERE id = $id""""#,
+                r#"val q = s"""SELECT id FROM users WHERE name = '${user.name}'""""#,
+                r#"val q = f"""SELECT id FROM users WHERE id = $id%d""""#,
             ] {
                 assert!(sqli(name, s), "expected code.sql-injection in {name}: {s}");
             }
@@ -941,6 +945,10 @@ mod tests {
                 r#"val q = sql"SELECT id FROM users WHERE id = $id""#,
                 // Without an interpolator a $ is just text in Scala.
                 r#"val q = "SELECT id FROM users WHERE id = $id""#,
+                r#"val msg = s"""Selected $n users from the list""""#,
+                r#"val q = s"""SELECT id FROM users WHERE id = ?""""#,
+                r#"val q = sql"""SELECT id FROM users WHERE id = $id""""#,
+                r#"val q = """SELECT id FROM users WHERE id = $id""""#,
             ] {
                 assert!(
                     !sqli(name, s),
