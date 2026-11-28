@@ -365,6 +365,29 @@ fn binary_bun_lockfile_is_named() {
 }
 
 #[test]
+fn binary_bun_lockfile_is_omitted_when_a_text_lockfile_sits_next_to_it() {
+    let root = std::env::temp_dir().join(format!("safe-anything-bun-both-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("a")).unwrap();
+    std::fs::create_dir_all(root.join("b")).unwrap();
+    for name in ["bun.lock", "a/bun.lock"] {
+        std::fs::write(
+            root.join(name),
+            r#"{"lockfileVersion":1,"workspaces":{},"packages":{}}"#,
+        )
+        .unwrap();
+    }
+    for name in ["bun.lockb", "a/bun.lockb", "b/bun.lockb"] {
+        std::fs::write(root.join(name), b"\0bun-lockfile").unwrap();
+    }
+    let report = safe_anything::scan(&root, &safe_anything::Options::offline()).unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+    // Only the lone binary lockfile is named; the one beside bun.lock is not.
+    assert_eq!(report.lockfiles_binary, ["b/bun.lockb"]);
+    assert_eq!(report.packages_checked, 0);
+}
+
+#[test]
 fn lockfile_over_the_limit_is_named() {
     let root = std::env::temp_dir().join(format!("safe-anything-huge-lock-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);

@@ -107,6 +107,9 @@ fn parser(name: &str) -> Option<Parser> {
     })
 }
 
+/// bun's text lockfile (bun 1.2 and later), the one packages are read from.
+pub const BUN_TEXT_LOCKFILE: &str = "bun.lock";
+
 /// bun's binary lockfile, written before bun 1.2. It cannot be read for
 /// packages, so the scan names it instead of passing over it in silence.
 pub const BUN_BINARY_LOCKFILE: &str = "bun.lockb";

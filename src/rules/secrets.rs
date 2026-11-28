@@ -422,7 +422,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.linear-api-key",
         Critical,
-        r"(?:\\[nrt]|\b)lin_api_[A-Za-z0-9]{40}\b",
+        r"(?:\\[nrt]|\b)(lin_api_[A-Za-z0-9]{40})\b",
         "A Linear API key is written in the file."
     ),
     secret!(
@@ -440,7 +440,7 @@ pub static RULES: &[Rule] = &[
     secret!(
         "secret.sentry-token",
         Critical,
-        r"(?:\\[nrt]|\b)sntryu_[0-9a-f]{64}\b",
+        r"(?:\\[nrt]|\b)(sntryu_[0-9a-f]{64})\b",
         "A Sentry user auth token is written in the file."
     ),
     secret!(
